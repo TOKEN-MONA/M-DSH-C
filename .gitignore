@@ -20,3 +20,4 @@ build/*-console.exe
 .idea/
 Thumbs.db
 desktop.ini
+.data-test/
