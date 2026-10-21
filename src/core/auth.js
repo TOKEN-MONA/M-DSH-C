@@ -97,7 +97,7 @@ export async function startDeviceLogin() {
       expiresIn: first.data.expires_in,
       interval: first.data.interval || 5,
       message: first.data.message,
-      fallback: primary === FALLBACK_CLIENT_ID,
+      fallback: false,
     };
   }
 
