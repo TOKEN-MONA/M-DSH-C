@@ -56,6 +56,14 @@ export function ruleAllows(rules, features = {}) {
   return allow;
 }
 
+/** natives 的架构由名字后缀决定：windows / windows-arm64 / windows-x86 */
+function nativeArchOk(name) {
+  const m = /:natives-[a-z]+(?:-(arm64|x86|x86_64))?$/i.exec(String(name || ''));
+  if (!m) return true;
+  const want = (m[1] || 'x86_64').toLowerCase();
+  const mine = process.arch === 'arm64' ? 'arm64' : process.arch === 'ia32' ? 'x86' : 'x86_64';
+  return want === mine;
+}
 export function versionDir(id) {
   return path.join(dirs().versions, id);
 }
@@ -199,6 +207,19 @@ export function resolveLibraries(merged, features = {}) {
       if (rel) artifact = { path: rel, url: `https://libraries.minecraft.net/${rel}` };
     }
     if (artifact && artifact.path) {
+      // 1.19+ 的 natives 是独立库（name 里带 :natives-windows 之类），
+      // 必须解压到 natives 目录，不能进 classpath，否则 lwjgl.dll 找不到
+      if (/:natives-/.test(String(lib.name || ''))) {
+        if (!nativeArchOk(lib.name)) continue;
+        natives.push({
+          path: artifact.path,
+          url: artifact.url || `https://libraries.minecraft.net/${artifact.path}`,
+          sha1: artifact.sha1,
+          size: artifact.size,
+          from: lib.name,
+        });
+        continue;
+      }
       if (!seenPath.has(artifact.path)) {
         seenPath.add(artifact.path);
         classpath.push({

@@ -68,13 +68,15 @@ function safeJoin(root, name) {
 /**
  * 解压到目录。filter(name) 返回 false 则跳过。
  */
-export function extractZip(buf, destDir, filter) {
+export function extractZip(buf, destDir, filter, mapName) {
   const entries = listZip(buf);
   let n = 0;
   for (const e of entries) {
     if (e.isDir) continue;
     if (filter && !filter(e.name)) continue;
-    const out = safeJoin(destDir, e.name);
+    const rel = mapName ? mapName(e.name) : e.name;
+    if (!rel) continue;
+    const out = safeJoin(destDir, rel);
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, readEntry(buf, e));
     n++;

@@ -131,16 +131,25 @@ async function installLibraries(merged, p, task) {
 
 export function extractNatives(versionId, merged) {
   const { natives } = resolveLibraries(merged, featuresFor());
-  if (!natives.length) return null;
   const dir = nativesDir(versionId);
+  // The directory must exist: -Djava.library.path points at it and LWJGL may
+  // extract into it; without it the game dies with "Failed to locate library".
   ensureDir(dir);
+  if (!natives.length) return dir;
   for (const n of natives) {
     const jar = path.join(dirs().libraries, n.path);
     if (!fs.existsSync(jar)) continue;
     try {
-      extractZip(fs.readFileSync(jar), dir, (name) => !name.startsWith('META-INF/') && !name.endsWith('/'));
+      // Modern natives jars keep the dll under windows/x64/org/lwjgl/.
+      // java.library.path does not recurse, so flatten to the bare file name.
+      extractZip(
+        fs.readFileSync(jar),
+        dir,
+        (name) => !name.startsWith('META-INF/') && !name.endsWith('/'),
+        (name) => path.basename(name)
+      );
     } catch (e) {
-      // 个别 jar 是空壳（只有 META-INF），忽略
+      // some jars are empty shells (META-INF only)
     }
   }
   return dir;

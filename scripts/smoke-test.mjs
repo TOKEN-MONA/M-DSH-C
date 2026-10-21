@@ -161,7 +161,34 @@ console.log('\n== 9. 崩溃诊断规则 ==');
   check('没有崩溃报告时 crashPath 为空', d.crashPath === '');
 }
 
-console.log('\n== 10. 路径与数据目录 ==');
+console.log('\n== 10. natives 归类 ==');
+{
+  const v = await mod('src/core/version.js');
+  const merged = {
+    libraries: [
+      {
+        name: 'org.lwjgl:lwjgl:3.3.3',
+        downloads: { artifact: { path: 'a/lwjgl-3.3.3.jar', url: 'https://example.invalid/', size: 1 } },
+      },
+      {
+        name: 'org.lwjgl:lwjgl:3.3.3:natives-windows',
+        rules: [{ action: 'allow', os: { name: 'windows' } }],
+        downloads: { artifact: { path: 'a/lwjgl-3.3.3-natives-windows.jar', url: 'https://example.invalid/', size: 1 } },
+      },
+      {
+        name: 'org.lwjgl:lwjgl:3.3.3:natives-windows-arm64',
+        rules: [{ action: 'allow', os: { name: 'windows' } }],
+        downloads: { artifact: { path: 'a/lwjgl-3.3.3-natives-windows-arm64.jar', url: 'https://example.invalid/', size: 1 } },
+      },
+    ],
+  };
+  const { classpath, natives } = v.resolveLibraries(merged, {});
+  check('natives jar 不进 classpath', classpath.every((c) => !/natives-/.test(c.path)), classpath.map((c) => c.path).join(','));
+  check('x64 机器只取无后缀的 natives', natives.length === 1, `got ${natives.length}`);
+  check('挑中的是对的', natives[0] && natives[0].path === 'a/lwjgl-3.3.3-natives-windows.jar', natives[0] && natives[0].path);
+}
+
+console.log('\n== 11. 路径与数据目录 ==');
 {
   const p = await mod('src/core/paths.js');
   p.setMcDir(path.join(TMP, 'mc'));
@@ -172,7 +199,7 @@ console.log('\n== 10. 路径与数据目录 ==');
 }
 
 if (process.argv.includes('--net')) {
-  console.log('\n== 11. 网络（--net）==');
+  console.log('\n== 12. 网络（--net）==');
   const { getManifest } = await mod('src/core/manifest.js');
   try {
     const m = await getManifest();
