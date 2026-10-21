@@ -1,0 +1,14 @@
+{
+  "name": "m-dsh-c",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "自用 Minecraft 启动器（零依赖，Node.js 标准库）",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

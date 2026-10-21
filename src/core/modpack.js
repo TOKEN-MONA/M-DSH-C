@@ -1,0 +1,203 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { dirs, ensureDir } from './paths.js';
+import { download, pool } from './http.js';
+import { listZip, readEntry } from './zip.js';
+import { readVersionJson, writeVersionJson, versionDir, jsonPath } from './version.js';
+import { installVersion, installFabric } from './install.js';
+import { installLoader } from './forge.js';
+import { setVersionMeta } from './store.js';
+import { versions as mrVersions, primaryFile } from './modrinth.js';
+import * as tasks from './tasks.js';
+
+function safeName(name) {
+  return (
+    String(name)
+      .replace(/[\\/:*?"<>|\r\n\t]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 60) || '整合包'
+  );
+}
+
+function uniqueId(base) {
+  const root = dirs().versions;
+  let id = base;
+  let n = 2;
+  while (fs.existsSync(path.join(root, id))) id = `${base} (${n++})`;
+  return id;
+}
+
+function extractPrefix(buf, prefix, destDir) {
+  const entries = listZip(buf);
+  const p = prefix.endsWith('/') ? prefix : `${prefix}/`;
+  const rootAbs = path.resolve(destDir);
+  let n = 0;
+  for (const e of entries) {
+    if (e.isDir || !e.name.startsWith(p)) continue;
+    const rel = e.name.slice(p.length);
+    if (!rel || rel.startsWith('..')) continue;
+    const out = path.resolve(destDir, rel);
+    if (!out.startsWith(rootAbs + path.sep)) continue;
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, readEntry(buf, e));
+    n++;
+  }
+  return n;
+}
+
+export function readIndexFromMrpack(buf) {
+  const entries = listZip(buf);
+  const entry = entries.find((e) => e.name === 'modrinth.index.json');
+  if (!entry) throw new Error('这个文件里没有 modrinth.index.json，不是 Modrinth 整合包（.mrpack）');
+  return JSON.parse(readEntry(buf, entry).toString('utf8'));
+}
+
+/**
+ * 核心流程：从内存里的 .mrpack 内容装成一个独立实例。
+ * 下载得到的和本地导入的走同一条路。
+ */
+async function installFromBuffer(buf, meta, task) {
+  const log = (l) => tasks.log(task, l);
+  const index = readIndexFromMrpack(buf);
+  const deps = index.dependencies || {};
+  const mcVersion = deps.minecraft || (meta.gameVersions && meta.gameVersions[0]);
+  if (!mcVersion) throw new Error('整合包里没写 Minecraft 版本');
+  log(`Minecraft ${mcVersion}，依赖：${JSON.stringify(deps)}`);
+
+  // 1. 基础版本
+  tasks.patch(task, { stage: `准备基础版本 ${mcVersion}` });
+  if (!fs.existsSync(jsonPath(mcVersion))) {
+    log(`先安装原版 ${mcVersion}`);
+    await installVersion(mcVersion, task);
+  }
+
+  // 2. 加载器
+  let baseId = mcVersion;
+  if (deps['fabric-loader']) {
+    const loaderId = `fabric-loader-${deps['fabric-loader']}-${mcVersion}`;
+    tasks.patch(task, { stage: `准备 Fabric ${deps['fabric-loader']}` });
+    if (!fs.existsSync(jsonPath(loaderId))) {
+      const r = await installFabric(mcVersion, task, deps['fabric-loader']);
+      baseId = r.id;
+    } else {
+      baseId = loaderId;
+    }
+  } else if (deps.neoforge) {
+    tasks.patch(task, { stage: `准备 NeoForge ${deps.neoforge}` });
+    baseId = await installLoader(mcVersion, 'neoforge', deps.neoforge, task);
+  } else if (deps.forge) {
+    tasks.patch(task, { stage: `准备 Forge ${deps.forge}` });
+    baseId = await installLoader(mcVersion, 'forge', deps.forge, task);
+  } else if (deps['quilt-loader']) {
+    throw new Error('Quilt 整合包暂不支持');
+  }
+
+  // 3. 建独立实例
+  const name = uniqueId(safeName(meta.title || index.name || '整合包'));
+  const baseJson = readVersionJson(baseId);
+  const instJson = { ...baseJson, id: name };
+  instJson.jar = baseJson.inheritsFrom || baseId;
+  delete instJson.__manifestType;
+  writeVersionJson(name, instJson);
+  const gameDir = versionDir(name);
+  ensureDir(gameDir);
+  log(`创建实例：${name} → ${gameDir}`);
+
+  // 4. 覆盖文件
+  tasks.patch(task, { stage: '解压覆盖文件（overrides）' });
+  let ov = 0;
+  for (const prefix of ['overrides', 'client-overrides']) ov += extractPrefix(buf, prefix, gameDir);
+  log(`覆盖文件 ${ov} 个`);
+
+  // 5. 文件清单
+  const files = (index.files || []).filter((f) => !(f.env && f.env.client === 'unsupported'));
+  tasks.patch(task, { stage: `下载整合包文件（${files.length} 个）`, total: files.length, done: 0 });
+  let done = 0;
+  let bytes = 0;
+  const errors = await pool(files, 8, async (f) => {
+    const url = (f.downloads && f.downloads[0]) || null;
+    if (!url) return;
+    const dest = path.join(gameDir, f.path);
+    await download(url, dest, { sha1: f.hashes && f.hashes.sha1, size: f.fileSize, timeout: 300000 });
+    done++;
+    bytes += f.fileSize || 0;
+    tasks.patch(task, { done, speed: bytes });
+  });
+  if (errors.length) {
+    log(`有 ${errors.length} 个文件下载失败，例如 ${errors[0].item.path}：${errors[0].error.message}`);
+    log('（CurseForge 直链在国内经常 403，可以挂代理后重装）');
+  }
+
+  const loaderKind = deps['fabric-loader']
+    ? 'fabric'
+    : deps.neoforge
+      ? 'neoforge'
+      : deps.forge
+        ? 'forge'
+        : 'vanilla';
+
+  setVersionMeta(name, {
+    type: 'modpack',
+    loader: loaderKind,
+    loaderVersion: deps['fabric-loader'] || deps.neoforge || deps.forge || '',
+    mcVersion,
+    isolated: true,
+    packProjectId: meta.projectId || null,
+    packVersionId: meta.packVersionId || null,
+    description: meta.description || index.summary || '',
+    installedAt: Date.now(),
+    baseVersion: baseId,
+  });
+
+  tasks.patch(task, { done: 100 });
+  return { id: name, gameDir, failed: errors.length };
+}
+
+/** 从 Modrinth 在线安装 */
+export async function installMrpack(pack, task) {
+  const log = (l) => tasks.log(task, l);
+
+  tasks.patch(task, { stage: '获取整合包信息', total: 100, done: 1 });
+  const list = await mrVersions(pack.projectId);
+  const ver = pack.versionId ? list.find((v) => v.id === pack.versionId) : list.find((v) => v.type === 'release') || list[0];
+  if (!ver) throw new Error('找不到这个整合包的版本');
+  const file = primaryFile(ver);
+  if (!file) throw new Error('该版本没有可下载文件');
+
+  const cacheDir = ensureDir(path.join(dirs().cache, 'packs'));
+  const mrpackPath = path.join(cacheDir, file.filename);
+  tasks.patch(task, { stage: `下载整合包 ${file.filename}` });
+  log(`下载 ${file.filename}（${(file.size / 1048576).toFixed(1)} MB）`);
+  await download(file.url, mrpackPath, { sha1: file.sha1, size: file.size, timeout: 600000 });
+
+  const buf = fs.readFileSync(mrpackPath);
+  fs.rmSync(mrpackPath, { force: true });
+
+  return installFromBuffer(
+    buf,
+    {
+      title: pack.title,
+      description: pack.description,
+      projectId: pack.projectId,
+      packVersionId: ver.id,
+      gameVersions: ver.gameVersions,
+    },
+    task
+  );
+}
+
+/** 从本地 .mrpack 文件安装 */
+export async function installMrpackFromFile(filePath, task, titleHint) {
+  const buf = fs.readFileSync(filePath);
+  const index = readIndexFromMrpack(buf);
+  return installFromBuffer(
+    buf,
+    {
+      title: titleHint || index.name || path.basename(filePath).replace(/\.mrpack$/i, ''),
+      description: index.summary || '',
+      gameVersions: index.dependencies ? [index.dependencies.minecraft] : [],
+    },
+    task
+  );
+}

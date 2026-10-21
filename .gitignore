@@ -1,0 +1,22 @@
+# 运行时数据（含账号令牌，绝不能提交）
+.data/
+.engine-home/
+*.exe
+*.log
+
+# 构建中间产物
+build/payload/
+build/payload.zip
+build/BuildId.gen.cs
+build/wv2/
+build/*-console.exe
+
+# 缓存
+*.zip
+!build/icon.ico
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

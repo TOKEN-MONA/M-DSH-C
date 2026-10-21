@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>M-DSH-C</title>
+<link rel="icon" href="/logo.png" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<svg width="0" height="0" style="display:none" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6L19.2 12z"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8.5"/><path d="M17.7 6.3a8 8 0 1 1-11.4 0"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 2.6 2.8 7.3 12 12l9.2-4.7z"/><path d="M2.8 12.2 12 16.9l9.2-4.7"/><path d="M2.8 16.9 12 21.6l9.2-4.7"/></symbol>
+  <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M9.6 3.6h4.8v2.2a2.4 2.4 0 1 0 4.8 0h1.2v4.8h-2.2a2.4 2.4 0 1 0 0 4.8h2.2v4.8h-4.8v-2.2a2.4 2.4 0 1 0-4.8 0v2.2H3.6v-4.8h2.2a2.4 2.4 0 1 0 0-4.8H3.6V5.8h1.2a2.4 2.4 0 1 0 4.8 0z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15.5v3.2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3.2"/><path d="M7.2 10.2 12 15l4.8-4.8"/><path d="M12 15V3.2"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M19.6 21v-1.8a4 4 0 0 0-4-4H8.4a4 4 0 0 0-4 4V21"/><circle cx="12" cy="7.6" r="4"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.2 14.6a1.6 1.6 0 0 0 .32 1.77l.06.06a1.9 1.9 0 1 1-2.7 2.7l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.47v.17a1.9 1.9 0 1 1-3.8 0v-.09a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a1.9 1.9 0 1 1-2.7-2.7l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-.97H3.4a1.9 1.9 0 1 1 0-3.8h.09a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a1.9 1.9 0 1 1 2.7-2.7l.06.06a1.6 1.6 0 0 0 1.77.32h.08a1.6 1.6 0 0 0 .97-1.47V3.4a1.9 1.9 0 1 1 3.8 0v.09a1.6 1.6 0 0 0 .97 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a1.9 1.9 0 1 1 2.7 2.7l-.06.06a1.6 1.6 0 0 0-.32 1.77v.08a1.6 1.6 0 0 0 1.47.97h.17a1.9 1.9 0 1 1 0 3.8h-.09a1.6 1.6 0 0 0-1.47.97z"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <img class="logo" src="/logo.png" alt="" />
+      <div>
+        <div class="brand-name">M-DSH-C</div>
+        <div class="brand-sub" id="brandSub">自用启动器</div>
+      </div>
+    </div>
+
+    <nav id="nav">
+      <button class="nav-item active" data-page="home"><svg class="ic"><use href="#i-play"/></svg>启动</button>
+      <button class="nav-item" data-page="versions"><svg class="ic"><use href="#i-layers"/></svg>版本管理</button>
+      <button class="nav-item" data-page="mods"><svg class="ic"><use href="#i-puzzle"/></svg>模组管理</button>
+      <button class="nav-item" data-page="download"><svg class="ic"><use href="#i-download"/></svg>下载中心</button>
+      <button class="nav-item" data-page="account"><svg class="ic"><use href="#i-user"/></svg>账号</button>
+      <button class="nav-item" data-page="settings"><svg class="ic"><use href="#i-gear"/></svg>设置</button>
+    </nav>
+
+    <div class="side-foot">
+      <div class="acc-chip" id="accChip" title="点击切换账号">
+        <div class="avatar" id="accAvatar">?</div>
+        <div class="acc-meta">
+          <div class="acc-name" id="accName">未登录</div>
+          <div class="acc-type" id="accType">点这里登录</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <!-- 启动 -->
+    <section class="page active" id="page-home">
+      <header class="page-head">
+        <h1>启动游戏</h1>
+        <p class="sub" id="homeSub">选一个版本，点启动</p>
+      </header>
+
+      <div class="card launch-card">
+        <div class="launch-top">
+          <div class="launch-left">
+            <select id="homeVersionSelect" class="version-select"></select>
+            <div class="badges" id="homeBadges"></div>
+          </div>
+          <button class="btn primary big" id="btnLaunch">
+            <svg class="ic" id="launchIcon"><use href="#i-play"/></svg>
+            <span id="launchLabel">启 动</span>
+          </button>
+        </div>
+        <div class="progress-wrap" id="progressWrap" hidden>
+          <div class="progress"><div class="bar" id="progressBar"></div></div>
+          <div class="progress-meta">
+            <span id="progressStage">准备中</span>
+            <span id="progressPct">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><h3>快捷操作</h3></div>
+          <div class="quick">
+            <button class="btn" data-quick="mods">模组管理</button>
+            <button class="btn" data-quick="game">打开游戏目录</button>
+            <button class="btn" data-quick="logs">打开日志目录</button>
+            <button class="btn" data-goto="download">下载中心</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>当前实例</h3></div>
+          <div class="kv" id="homeInfo"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>运行日志</h3>
+          <div class="head-actions">
+            <button class="link" id="btnClearLog">清空</button>
+            <button class="link" id="btnCopyLog">复制</button>
+          </div>
+        </div>
+        <pre class="log" id="logBox"></pre>
+      </div>
+    </section>
+
+    <!-- 版本管理 -->
+    <section class="page" id="page-versions">
+      <header class="page-head">
+        <h1>版本管理</h1>
+        <p class="sub">每个版本可以独立隔离（mods / 存档 / 配置互不干扰）</p>
+      </header>
+      <div class="card">
+        <div class="table" id="versionTable"></div>
+      </div>
+    </section>
+
+    <!-- 模组管理 -->
+    <section class="page" id="page-mods">
+      <header class="page-head">
+        <h1>模组管理</h1>
+        <p class="sub" id="modsSub">看、开关、删掉这个实例里已装的模组</p>
+      </header>
+
+      <div class="card">
+        <div class="filter-row">
+          <label class="field">
+            <span>实例</span>
+            <select id="modsVersion" class="input"></select>
+          </label>
+          <label class="field" style="flex:1">
+            <span>筛选</span>
+            <input id="modsFilter" class="input" placeholder="模组名或文件名" />
+          </label>
+          <button class="btn" id="btnModsDir">打开目录</button>
+          <button class="btn" id="btnModsRefresh">刷新</button>
+        </div>
+        <div class="hint" id="modsHint"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3 id="modsCount">模组列表</h3>
+          <label class="check"><input type="checkbox" id="modsShowDisabled" checked /> 显示已禁用</label>
+        </div>
+        <div class="scroll-y" id="modsList"></div>
+      </div>
+    </section>
+
+    <!-- 下载中心 -->
+    <section class="page" id="page-download">
+      <header class="page-head">
+        <h1>下载中心</h1>
+        <p class="sub">版本从 Mojang 官方清单拿，模组和整合包来自 Modrinth</p>
+      </header>
+
+      <div class="tabs" id="dlTabs">
+        <button class="tab active" data-tab="vanilla">游戏版本</button>
+        <button class="tab" data-tab="mod">模组</button>
+        <button class="tab" data-tab="modpack">整合包</button>
+        <button class="tab" data-tab="resourcepack">资源包</button>
+        <button class="tab" data-tab="shader">光影</button>
+      </div>
+
+      <!-- 项目详情页（点进某个模组后） -->
+      <div id="dlDetail" hidden>
+        <button class="btn" id="dlBack">← 返回列表</button>
+        <div class="card" id="detailHead"></div>
+        <div class="card" id="detailVersions"></div>
+      </div>
+
+
+      <!-- 游戏版本 -->
+      <div class="tab-page active" id="tab-vanilla">
+        <div class="card">
+          <div class="filter-row">
+            <input id="verFilter" class="input" placeholder="搜索版本号，例如 1.21 / 1.8.9" />
+            <div class="seg" id="verTypeSeg">
+              <button class="seg-item active" data-type="release">正式版</button>
+              <button class="seg-item" data-type="snapshot">快照</button>
+              <button class="seg-item" data-type="all">全部</button>
+            </div>
+            <label class="check"><input type="checkbox" id="withFabric" /> 同时装 Fabric</label>
+          </div>
+        </div>
+        <div class="card scroll-y" id="vanillaList"></div>
+      </div>
+
+      <!-- 模组 -->
+      <div class="tab-page" id="tab-mod">
+        <div class="card">
+          <div class="filter-row">
+            <input id="modQuery" class="input" placeholder="搜索 Modrinth 模组，支持中文（如 钠、锂、JEI）" />
+            <button class="btn primary" id="btnModSearch">搜索</button>
+          </div>
+          <div class="filter-row" style="margin-top:10px">
+            <label class="field">
+              <span>游戏版本</span>
+              <select id="modGameVer" class="input small"></select>
+            </label>
+            <label class="field">
+              <span>加载器</span>
+              <select id="modLoader" class="input small">
+                <option value="">任意</option>
+                <option value="fabric">Fabric</option>
+                <option value="neoforge">NeoForge</option>
+                <option value="forge">Forge</option>
+                <option value="quilt">Quilt</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>装到哪个版本</span>
+              <select id="modTarget" class="input"></select>
+            </label>
+          </div>
+          <div class="hint" id="modHint"></div>
+        </div>
+        <div class="card scroll-y" id="modList"></div>
+      </div>
+
+      <!-- 整合包 -->
+      <div class="tab-page" id="tab-modpack">
+        <div class="card">
+          <div class="filter-row">
+            <input id="packQuery" class="input" placeholder="搜索 Modrinth 整合包（如 生存、冒险、科技）" />
+            <button class="btn primary" id="btnPackSearch">搜索</button>
+            <button class="btn" id="btnPackImport">从本地文件导入</button>
+            <input type="file" id="packFile" accept=".mrpack" hidden />
+          </div>
+          <div class="hint">整合包会装成独立实例，有自己的 mods / 存档 / 配置目录。本地导入只支持 Modrinth 的 <code>.mrpack</code>。</div>
+        </div>
+        <div class="card scroll-y" id="packList"></div>
+      </div>
+
+      <div class="tab-page" id="tab-resourcepack">
+        <div class="card">
+          <div class="filter-row">
+            <input id="rpQuery" class="input" placeholder="搜索 Modrinth 资源包" />
+            <label class="field">
+              <span>游戏版本</span>
+              <select id="rpGameVer" class="input small"></select>
+            </label>
+            <button class="btn primary" id="btnRpSearch">搜索</button>
+          </div>
+          <div class="hint" id="rpHint"></div>
+        </div>
+        <div class="card scroll-y" id="rpList"></div>
+      </div>
+
+      <div class="tab-page" id="tab-shader">
+        <div class="card">
+          <div class="filter-row">
+            <input id="shQuery" class="input" placeholder="搜索 Modrinth 光影（如 complementary、bsl）" />
+            <label class="field">
+              <span>游戏版本</span>
+              <select id="shGameVer" class="input small"></select>
+            </label>
+            <button class="btn primary" id="btnShSearch">搜索</button>
+          </div>
+          <div class="hint" id="shHint">光影需要 Irvine 等前置（如 Iris / OptiFine），装之前先确认实例里已经有</div>
+        </div>
+        <div class="card scroll-y" id="shList"></div>
+      </div>
+    </section>
+
+    <!-- 账号 -->
+    <section class="page" id="page-account">
+      <header class="page-head">
+        <h1>账号</h1>
+      </header>
+
+      <div class="grid2">
+        <div class="card">
+          <h3>正版登录（微软）</h3>
+          <p class="muted">点下面按钮 → 浏览器打开微软页面 → 输入下面这串代码 → 授权。</p>
+          <div class="device-box" id="deviceBox" hidden>
+            <div class="device-code" id="deviceCode">----</div>
+            <div class="device-actions">
+              <button class="btn" id="btnOpenMs">打开微软登录页</button>
+              <button class="btn" id="btnCopyCode">复制代码</button>
+            </div>
+            <div class="hint" id="deviceHint">等待授权中……</div>
+          </div>
+          <button class="btn primary" id="btnMsLogin">开始正版登录</button>
+        </div>
+
+        <div class="card">
+          <h3>离线登录</h3>
+          <div class="filter-row">
+            <input id="offlineName" class="input" placeholder="用户名（3~16 位字母数字）" />
+            <button class="btn" id="btnOffline">离线登录</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>已保存的账号</h3>
+          <div class="head-actions">
+            <button class="link" id="btnLogout">退出当前账号</button>
+            <button class="link" id="btnClearAccounts" style="color:var(--danger)">清除全部登录数据</button>
+          </div>
+        </div>
+        <div id="accountList" class="list"></div>
+      </div>
+    </section>
+
+    <!-- 设置 -->
+    <section class="page" id="page-settings">
+      <header class="page-head">
+        <h1>设置</h1>
+        <p class="sub">改完立刻生效，不用重启</p>
+      </header>
+
+      <div class="card">
+        <h3>内存</h3>
+        <div class="setting-row">
+          <label>最大内存</label>
+          <input type="range" id="maxMem" min="1024" max="32768" step="512" />
+          <span class="val" id="maxMemVal">4096 MB</span>
+        </div>
+        <div class="setting-row">
+          <label>最小内存</label>
+          <input type="range" id="minMem" min="512" max="16384" step="512" />
+          <span class="val" id="minMemVal">1024 MB</span>
+        </div>
+        <p class="hint" id="memHint"></p>
+      </div>
+
+      <div class="card">
+        <h3>Java</h3>
+        <p class="muted">不同版本要不同 Java：1.16 及以前用 8，1.17~1.20.4 用 17，1.20.5+ 用 21。启动时会自动挑。</p>
+        <div class="filter-row">
+          <select id="javaSelect" class="input"></select>
+          <button class="btn" id="btnRescanJava">重新扫描</button>
+        </div>
+        <div class="filter-row" style="margin-top:10px">
+          <button class="btn" data-java="8">下载 Java 8</button>
+          <button class="btn" data-java="17">下载 Java 17</button>
+          <button class="btn" data-java="21">下载 Java 21</button>
+        </div>
+        <div class="hint" id="javaHint"></div>
+      </div>
+
+      <div class="card">
+        <h3>下载</h3>
+        <div class="setting-row">
+          <label>下载源</label>
+          <select id="downloadSource" class="input">
+            <option value="auto">自动（官方优先，失败切镜像）</option>
+            <option value="mirror">镜像优先（BMCLAPI，国内快）</option>
+            <option value="official">只走官方</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label>并发下载数</label>
+          <input type="number" id="threads" class="input small" min="1" max="128" />
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>游戏目录</h3>
+        <div class="filter-row">
+          <input id="gameDir" class="input" placeholder="例如 I:\MC" />
+          <button class="btn" id="btnSaveDir">应用</button>
+        </div>
+        <div class="hint" id="dirHint"></div>
+      </div>
+
+      <div class="card">
+        <h3>高级</h3>
+        <div class="setting-row col">
+          <label>额外 JVM 参数</label>
+          <textarea id="jvmArgs" class="input" rows="3" placeholder="-XX:+UseG1GC ..."></textarea>
+        </div>
+        <div class="setting-row col">
+          <label>微软应用 ID（建议留空）</label>
+          <div class="filter-row">
+            <input id="clientId" class="input" placeholder="留空 = 用内置的" />
+            <button class="btn" id="btnClientCheck">检查配置</button>
+          </div>
+          <div class="hint" id="clientCheckHint"></div>
+        </div>
+        <div class="setting-row col">
+          <label>CurseForge API Key（可选，填了才会搜 CF）</label>
+          <div class="filter-row">
+            <input id="curseforgeKey" class="input" placeholder="在 console.curseforge.com 申请" />
+            <button class="btn" id="btnCfProbe">测试</button>
+          </div>
+          <div class="hint" id="cfHint"></div>
+        </div>
+        <div class="filter-row" style="margin-top:12px">
+          <button class="btn" id="btnSaveSettings">保存设置</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-mask" id="modalMask"></div>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modalTitle">选择版本</h3>
+      <button class="link" id="modalClose">关闭</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
