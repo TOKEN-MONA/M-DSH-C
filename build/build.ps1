@@ -69,7 +69,20 @@ $sources = @(
 )
 
 $out = Join-Path $root 'M-DSH-C.exe'
-if (Test-Path $out) { Remove-Item $out -Force }
+if (Test-Path $out) {
+  try {
+    Remove-Item $out -Force -ErrorAction Stop
+  } catch {
+    Write-Host ''
+    Write-Host '  Cannot remove the old exe. Usual cause: it was copied from the'
+    Write-Host '  DSH workspace and carries a restrictive ACL.'
+    Write-Host '  Fix (elevated PowerShell):'
+    Write-Host "    icacls `"$out`" /reset"
+    Write-Host "    Remove-Item `"$out`" -Force"
+    Write-Host ''
+    throw
+  }
+}
 
 $common = @()
 $common += '/nologo'
