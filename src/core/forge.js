@@ -4,6 +4,8 @@ import { execFile } from 'node:child_process';
 import { dirs } from './paths.js';
 import { fetchText, download } from './http.js';
 import { detectJava, pickJava } from './java.js';
+import { installVersion } from './install.js';
+import { jarPathFor } from './version.js';
 import { setVersionMeta } from './store.js';
 import * as tasks from './tasks.js';
 
@@ -60,6 +62,13 @@ export async function installLoader(mcVersion, loader, version, task) {
   const mcDir = dirs().mc;
   const log = (l) => tasks.log(task, l);
 
+  // 安装器只下载 Forge 自己的库，原版那些（lwjgl、gson、netty…）得我们自己装，
+  // 否则 classpath 里会有一大批文件不存在，启动时才炸。
+  if (!fs.existsSync(jarPathFor(mcVersion))) {
+    log(`基础版本 ${mcVersion} 还没装，先装原版`);
+    await installVersion(mcVersion, task);
+  }
+
   let java = await pickJava(21);
   if (!java) {
     const list = await detectJava({ refresh: true });
@@ -85,6 +94,15 @@ export async function installLoader(mcVersion, loader, version, task) {
   tasks.patch(task, { stage: `下载 ${loader} 安装器` });
   log(`下载 ${path.basename(url)}`);
   await download(url, jarFile, { timeout: 300000 });
+
+  // 官方安装器会检查这个文件，全新目录里没有就直接报
+  // "There is no minecraft launcher profile ... you need to run the launcher first!"
+  const profiles = path.join(mcDir, 'launcher_profiles.json');
+  if (!fs.existsSync(profiles)) {
+    log('创建 launcher_profiles.json（安装器要求）');
+    fs.mkdirSync(mcDir, { recursive: true });
+    fs.writeFileSync(profiles, JSON.stringify({ profiles: {}, settings: { language: 'zh_CN' }, version: 3 }, null, 2), 'utf8');
+  }
 
   tasks.patch(task, { stage: '运行安装器（可能要几分钟）' });
   log(`用 ${java.path} 运行安装器`);

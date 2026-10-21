@@ -29,7 +29,8 @@ export async function getManifest({ force = false, task } = {}) {
     }
   }
 
-  if (task) task.stage && task.stage('获取版本列表');
+  // 注意：task.stage 是字符串字段，不是方法。这里只更新它，真正的进度广播由调用方负责。
+  if (task) task.stage = '获取版本列表';
   try {
     const data = await fetchJson(MANIFEST_URL);
     ensureDir(path.dirname(file));

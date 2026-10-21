@@ -17,6 +17,8 @@ const MIRROR_RULES = [
   [/^https:\/\/files\.minecraftforge\.net/i, 'https://bmclapi2.bangbang93.com/maven'],
   [/^https:\/\/maven\.minecraftforge\.net/i, 'https://bmclapi2.bangbang93.com/maven'],
   [/^https:\/\/maven\.fabricmc\.net/i, 'https://bmclapi2.bangbang93.com/maven'],
+  [/^https:\/\/maven\.neoforged\.net\/releases/i, 'https://bmclapi2.bangbang93.com/maven'],
+  [/^https:\/\/maven\.neoforged\.net/i, 'https://bmclapi2.bangbang93.com/maven'],
   [/^https:\/\/meta\.fabricmc\.net/i, 'https://bmclapi2.bangbang93.com/fabric-meta'],
   [/^https:\/\/maven\.quiltmc\.org/i, 'https://bmclapi2.bangbang93.com/maven'],
 ];
