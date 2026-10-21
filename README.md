@@ -16,8 +16,10 @@
 | Java | 自动检测系统 Java；没有就自动下载 Mojang 官方运行时（8 / 17 / 21 按版本匹配） |
 | 模组 | Modrinth + CurseForge 双源搜索，可指定版本安装，自动补 required 前置 |
 | 中文搜索 | 内置中英对照词表 + MC百科兜底，搜「钠」「机械动力」「农夫」都能出本体 |
-| 整合包 | Modrinth `.mrpack` 在线安装 / 本地导入，装成独立实例 |
+| 整合包 | Modrinth `.mrpack` 在线安装 / 本地导入（`.mrpack` 与 CurseForge `.zip` 都认），装成独立实例 |
 | 资源包 / 光影 | 同样是 Modrinth 搜索 + 一键安装到对应目录 |
+| 数据包 | Modrinth 搜索，下载到实例的 `datapacks` 目录 |
+| 崩溃诊断 | 游戏异常退出后读 `latest.log` 和崩溃报告，给出人话结论（Java 版本 / 内存 / 缺前置 / 模组冲突 …） |
 | 模组管理 | 读 jar 元数据拿到真实模组名，支持启用 / 禁用（改名 `.disabled`）和删除 |
 | 正版登录 | 微软官方设备码流程，密码只在微软页面输入，启动器接触不到 |
 | 启动 | 正确的 classpath / natives / 参数拼装，支持任意版本 |
@@ -141,7 +143,7 @@ node scripts\smoke-test.mjs --net    # 额外检查 Mojang / Modrinth 可达性
 ## 已知限制
 
 - 只支持 Windows
-- 整合包只支持 Modrinth 的 `.mrpack`，不支持 CurseForge 的 `.zip`
+- CurseForge 的 `.zip` 整合包需要先在设置里填 API Key（回源解析每个 mod 的直链）
 - Quilt 未支持
 - 没有代码签名，SmartScreen 会拦一次
 

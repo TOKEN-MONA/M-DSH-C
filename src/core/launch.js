@@ -3,12 +3,13 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { dirs } from './paths.js';
 import { resolveMerged, resolveLibraries, jarPathFor, nativesDir, expandArgs, substitute, versionDir } from './version.js';
-import { getSettings, getVersionMeta, setVersionMeta } from './store.js';
+import { getSettings, getVersionMeta, setVersionMeta, setLastCrash, clearLastCrash } from './store.js';
 import { pickJava, installJava, javaMajorFor, javaComponentFor, javaExeInDir } from './java.js';
 import { extractNatives, featuresFor, installVersion } from './install.js';
 import { effectiveMemory } from './memory.js';
 import { refreshAccount, currentAccount } from './auth.js';
 import * as tasks from './tasks.js';
+import { diagnose } from './crash.js';
 
 export const running = new Map(); // versionId -> {child, startedAt}
 
@@ -263,7 +264,12 @@ export async function launch(versionId, task) {
       tasks.log(task, `游戏正常退出（玩了 ${Math.round(secs / 60)} 分钟）`);
       tasks.finish(task, null);
     } else {
-      tasks.log(task, `游戏异常退出，退出码 ${code}。常见原因：Java 版本不对 / 内存不足 / 模组冲突`);
+      const diag = diagnose(cmd.gameDir, code);
+      setLastCrash({ ...diag, versionId, exitCode: code, at: Date.now() });
+      tasks.log(task, `游戏异常退出（退出码 ${code}）`);
+      tasks.log(task, `诊断：${diag.title}`);
+      tasks.log(task, diag.hint);
+      if (diag.excerpt) tasks.log(task, `关键行：${diag.excerpt}`);
       tasks.finish(task, null);
     }
   });

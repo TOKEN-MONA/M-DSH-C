@@ -133,7 +133,35 @@ console.log('\n== 7. 内存策略 ==');
   check('结果按 512MB 对齐', autoMaxMB(32371) % 512 === 0, String(autoMaxMB(32371)));
 }
 
-console.log('\n== 8. 路径与数据目录 ==');
+console.log('\n== 9. 崩溃诊断规则 ==');
+{
+  const { diagnose } = await mod('src/core/crash.js');
+  const g = path.join(TMP, 'crash-case');
+  fs.mkdirSync(path.join(g, 'logs'), { recursive: true });
+  const logFile = path.join(g, 'logs', 'latest.log');
+
+  const cases = [
+    ['java.lang.UnsupportedClassVersionError: X', 'Java 版本不对'],
+    ['java.lang.OutOfMemoryError: Java heap space', '内存不够'],
+    ['net.minecraftforge.fml.ModResolutionException: Missing or unsupported mandatory dependencies', '缺前置模组'],
+    ['Found duplicate mods: sodium', '模组重复'],
+    ['Mixin apply failed: mod x', 'Mixin 冲突（模组不兼容）'],
+    ['java.lang.NoSuchMethodError: x.y.Z', '模组与游戏版本不匹配'],
+  ];
+  for (const [line, expect] of cases) {
+    fs.writeFileSync(logFile, `[main/INFO] boot\n${line}\n`, 'utf8');
+    const d = diagnose(g, 1);
+    check(`识别：${expect}`, d.title === expect, d.title);
+  }
+
+  fs.writeFileSync(logFile, 'nothing useful here', 'utf8');
+  const d = diagnose(g, 1);
+  check('未知错误走兜底', d.title.includes('异常退出'), d.title);
+  check('能定位日志文件', d.logPath === logFile);
+  check('没有崩溃报告时 crashPath 为空', d.crashPath === '');
+}
+
+console.log('\n== 10. 路径与数据目录 ==');
 {
   const p = await mod('src/core/paths.js');
   p.setMcDir(path.join(TMP, 'mc'));
@@ -144,7 +172,7 @@ console.log('\n== 8. 路径与数据目录 ==');
 }
 
 if (process.argv.includes('--net')) {
-  console.log('\n== 9. 网络（--net）==');
+  console.log('\n== 11. 网络（--net）==');
   const { getManifest } = await mod('src/core/manifest.js');
   try {
     const m = await getManifest();

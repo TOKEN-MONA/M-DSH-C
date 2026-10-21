@@ -95,3 +95,31 @@ export function saveAccountsFile() {
 }
 
 export { DEFAULTS };
+
+/* ---------------- 最近一次崩溃诊断 ---------------- */
+
+const CRASH_FILE = () => path.join(dirs().data, 'last-crash.json');
+
+export function getLastCrash() {
+  try {
+    return JSON.parse(fs.readFileSync(CRASH_FILE(), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function setLastCrash(info) {
+  try {
+    fs.writeFileSync(CRASH_FILE(), JSON.stringify(info, null, 2), 'utf8');
+  } catch {
+    /* 写不进去就只存在内存里 */
+  }
+}
+
+export function clearLastCrash() {
+  try {
+    fs.rmSync(CRASH_FILE(), { force: true });
+  } catch {
+    /* ignore */
+  }
+}

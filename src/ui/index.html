@@ -93,6 +93,22 @@
         </div>
       </div>
 
+      <div class="card crash-card" id="crashCard" hidden>
+        <div class="card-head">
+          <h3 id="crashTitle">上次异常退出</h3>
+          <div class="head-actions">
+            <button class="link" id="btnCrashLog">打开日志</button>
+            <button class="link" id="btnCrashReport">看崩溃报告</button>
+            <button class="link" id="btnCrashDismiss">知道了</button>
+          </div>
+        </div>
+        <div class="crash-body">
+          <p class="crash-hint" id="crashHint"></p>
+          <p class="crash-detail" id="crashDetail"></p>
+          <pre class="crash-excerpt" id="crashExcerpt"></pre>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-head">
           <h3>运行日志</h3>
@@ -161,6 +177,7 @@
         <button class="tab" data-tab="modpack">整合包</button>
         <button class="tab" data-tab="resourcepack">资源包</button>
         <button class="tab" data-tab="shader">光影</button>
+        <button class="tab" data-tab="datapack">数据包</button>
       </div>
 
       <!-- 项目详情页（点进某个模组后） -->
@@ -226,9 +243,9 @@
             <input id="packQuery" class="input" placeholder="搜索 Modrinth 整合包（如 生存、冒险、科技）" />
             <button class="btn primary" id="btnPackSearch">搜索</button>
             <button class="btn" id="btnPackImport">从本地文件导入</button>
-            <input type="file" id="packFile" accept=".mrpack" hidden />
+            <input type="file" id="packFile" accept=".mrpack,.zip" hidden />
           </div>
-          <div class="hint">整合包会装成独立实例，有自己的 mods / 存档 / 配置目录。本地导入只支持 Modrinth 的 <code>.mrpack</code>。</div>
+          <div class="hint">整合包会装成独立实例，有自己的 mods / 存档 / 配置目录。本地导入支持 Modrinth 的 <code>.mrpack</code> 和 CurseForge 的 <code>.zip</code>（后者需要在「设置」里填 CurseForge API Key）。</div>
         </div>
         <div class="card scroll-y" id="packList"></div>
       </div>
@@ -261,6 +278,21 @@
           <div class="hint" id="shHint">光影需要 Irvine 等前置（如 Iris / OptiFine），装之前先确认实例里已经有</div>
         </div>
         <div class="card scroll-y" id="shList"></div>
+      </div>
+
+      <div class="tab-page" id="tab-datapack">
+        <div class="card">
+          <div class="filter-row">
+            <input id="dpQuery" class="input" placeholder="搜索 Modrinth 数据包（如 terralith、incendium）" />
+            <label class="field">
+              <span>游戏版本</span>
+              <select id="dpGameVer" class="input small"></select>
+            </label>
+            <button class="btn primary" id="btnDpSearch">搜索</button>
+          </div>
+          <div class="hint" id="dpHint">数据包会下载到实例的 datapacks 目录；要生效还得复制进具体存档的 saves\&lt;存档名&gt;\datapacks 里</div>
+        </div>
+        <div class="card scroll-y" id="dpList"></div>
       </div>
     </section>
 

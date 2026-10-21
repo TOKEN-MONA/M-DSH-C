@@ -131,6 +131,7 @@ async function refresh() {
   state.versions = data.versions || [];
   state.system = data.system || null;
   state.memory = data.memory || null;
+  state.lastCrash = data.lastCrash || null;
   if (!state.selected || !state.versions.some((v) => v.id === state.selected)) {
     state.selected = state.settings.selectedVersion || (state.versions[0] && state.versions[0].id) || '';
   }
@@ -139,6 +140,7 @@ async function refresh() {
   renderVersions();
   renderAccounts();
   renderSettings();
+  renderCrash();
   fillVersionSelects();
 }
 
@@ -439,7 +441,7 @@ function fillVersionSelects() {
   if (prevT && state.versions.some((v) => v.id === prevT)) t.value = prevT;
   else if (state.selected && state.versions.some((v) => v.id === state.selected)) t.value = state.selected;
 
-  for (const id of ['#rpGameVer', '#shGameVer']) {
+  for (const id of ['#rpGameVer', '#shGameVer', '#dpGameVer']) {
     const el = $(id);
     if (!el) continue;
     const prevGv = el.value;
@@ -1456,12 +1458,18 @@ async function startInstall(projectId, versionId, title, kind, source) {
 
 /* ================= 资源包 / 光影 ================= */
 
+const ASSET_UI = {
+  resourcepack: { box: '#rpList', q: '#rpQuery', gv: '#rpGameVer', hint: '#rpHint', sub: 'resourcepacks' },
+  shader: { box: '#shList', q: '#shQuery', gv: '#shGameVer', hint: '#shHint', sub: 'shaderpacks' },
+  datapack: { box: '#dpList', q: '#dpQuery', gv: '#dpGameVer', hint: '#dpHint', sub: 'datapacks' },
+};
+
 async function searchAsset(kind) {
-  const isRp = kind === 'resourcepack';
-  const box = $(isRp ? '#rpList' : '#shList');
-  const q = $(isRp ? '#rpQuery' : '#shQuery').value || '';
-  const gv = $(isRp ? '#rpGameVer' : '#shGameVer').value || '';
-  $(isRp ? '#rpHint' : '#shHint').textContent = `搜索结果会装到「${state.selected || '未选中'}」实例里`;
+  const ui = ASSET_UI[kind];
+  const box = $(ui.box);
+  const q = $(ui.q).value || '';
+  const gv = $(ui.gv).value || '';
+  $(ui.hint).textContent = `搜索结果会装到「${state.selected || '未选中'}」实例的 ${ui.sub} 目录里`;
   box.innerHTML = '<div class="empty">搜索中……</div>';
   try {
     const params = new URLSearchParams({ q, type: kind, gv, limit: 20 });
@@ -1503,8 +1511,10 @@ async function searchAsset(kind) {
 
 $('#btnRpSearch').addEventListener('click', () => searchAsset('resourcepack'));
 $('#btnShSearch').addEventListener('click', () => searchAsset('shader'));
+$('#btnDpSearch').addEventListener('click', () => searchAsset('datapack'));
 $('#rpQuery').addEventListener('keydown', (e) => e.key === 'Enter' && searchAsset('resourcepack'));
 $('#shQuery').addEventListener('keydown', (e) => e.key === 'Enter' && searchAsset('shader'));
+$('#dpQuery').addEventListener('keydown', (e) => e.key === 'Enter' && searchAsset('datapack'));
 
 /* ================= 本地整合包导入 ================= */
 
@@ -1514,7 +1524,7 @@ $('#packFile').addEventListener('change', async (e) => {
   const f = e.target.files && e.target.files[0];
   e.target.value = '';
   if (!f) return;
-  if (!/\.mrpack$/i.test(f.name)) return toast('只支持 .mrpack 文件', true);
+  if (!/\.(mrpack|zip)$/i.test(f.name)) return toast('只支持 .mrpack 或 CurseForge 的 .zip', true);
   if (!confirm(`导入「${f.name}」（${fmtSize(f.size)}）？\n会作为独立实例安装，可能还要下几百 MB 的模组。`)) return;
 
   toast('正在读取文件…');
@@ -1532,5 +1542,41 @@ $('#packFile').addEventListener('change', async (e) => {
     toast(`开始导入 ${f.name}`);
   } catch (err) {
     toast('导入失败：' + err.message, true);
+  }
+});
+
+/* ================= 崩溃诊断卡片 ================= */
+
+function renderCrash() {
+  const c = state.lastCrash;
+  const card = $('#crashCard');
+  if (!card) return;
+  if (!c) {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  $('#crashTitle').textContent = `${c.title}${c.versionId ? '（' + c.versionId + '）' : ''}`;
+  $('#crashHint').textContent = c.hint || '';
+  $('#crashDetail').textContent = c.detail ? `崩溃报告描述：${c.detail}` : '';
+  $('#crashDetail').hidden = !c.detail;
+  $('#crashExcerpt').textContent = c.excerpt || '';
+  $('#crashExcerpt').hidden = !c.excerpt;
+  $('#btnCrashReport').hidden = !c.crashPath;
+}
+
+$('#btnCrashLog').addEventListener('click', () =>
+  api('/api/crash/reveal', { body: { which: 'log' } }).catch((e) => toast(e.message, true))
+);
+$('#btnCrashReport').addEventListener('click', () =>
+  api('/api/crash/reveal', { body: { which: 'report' } }).catch((e) => toast(e.message, true))
+);
+$('#btnCrashDismiss').addEventListener('click', async () => {
+  try {
+    await api('/api/crash/clear', { body: {} });
+    if (state) state.lastCrash = null;
+    $('#crashCard').hidden = true;
+  } catch (e) {
+    toast(e.message, true);
   }
 });

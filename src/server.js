@@ -16,7 +16,7 @@ import { detectJava, installJava } from './core/java.js';
 import * as auth from './core/auth.js';
 import * as launcher from './core/launch.js';
 import * as modrinth from './core/modrinth.js';
-import { installMrpack, installMrpackFromFile } from './core/modpack.js';
+import { installMrpack, installPackFromFile } from './core/modpack.js';
 import * as mods from './core/mods.js';
 import { systemMemory, effectiveMemory } from './core/memory.js';
 import * as cn from './core/cn.js';
@@ -381,6 +381,7 @@ function statePayload() {
     account: acc.current ? { type: acc.current.type, name: acc.current.name, uuid: acc.current.uuid } : null,
     accounts: (acc.list || []).map((a) => ({ type: a.type, name: a.name, uuid: a.uuid })),
     versions: scanInstalled(),
+    lastCrash: store.getLastCrash(),
     system: systemMemory(),
     memory: effectiveMemory(store.getSettings()),
     platform: process.platform,
@@ -544,6 +545,20 @@ route('POST', /^\/api\/version\/([^/]+)\/reveal$/, async (req, res, m, url) => {
   send(res, 200, { ok: true, dir });
 });
 
+route('POST', /^\/api\/crash\/reveal$/, async (req, res) => {
+  const { which } = await readBody(req);
+  const c = store.getLastCrash();
+  const target = which === 'report' ? c && c.crashPath : c && c.logPath;
+  if (!target || !fs.existsSync(target)) return send(res, 404, { error: '没有找到对应的日志文件' });
+  exec(`explorer.exe /select,"${target}"`);
+  send(res, 200, { ok: true });
+});
+
+route('POST', /^\/api\/crash\/clear$/, async (req, res) => {
+  store.clearLastCrash();
+  broadcast('state', statePayload());
+  send(res, 200, { ok: true });
+});
 route('POST', /^\/api\/version\/([^/]+)\/cmdline$/, async (req, res, m) => {
   const id = decodeURIComponent(m[1]);
   try {
@@ -781,7 +796,8 @@ route('POST', /^\/api\/modrinth\/install$/, async (req, res) => {
   const target = targetVersionId || store.getSettings().selectedVersion;
   if (!target) return send(res, 400, { error: '没有选中要装进哪个版本' });
 
-  const subdir = kind === 'resourcepack' ? 'resourcepacks' : kind === 'shader' ? 'shaderpacks' : 'mods';
+  const subdir =
+    kind === 'resourcepack' ? 'resourcepacks' : kind === 'shader' ? 'shaderpacks' : kind === 'datapack' ? 'datapacks' : 'mods';
   const label = kind === 'resourcepack' ? '资源包' : kind === 'shader' ? '光影' : '模组';
   const task = tasks.createTask(`安装${label} → ${target}`);
 
@@ -923,7 +939,7 @@ route('POST', /^\/api\/modpack\/import$/, async (req, res) => {
   const task = tasks.createTask(`导入整合包 ${title}`);
   (async () => {
     try {
-      await installMrpackFromFile(tmp, task, title);
+      await installPackFromFile(tmp, task, title);
       tasks.finish(task, null);
     } catch (e) {
       tasks.log(task, `失败：${e.message}`);

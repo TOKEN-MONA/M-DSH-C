@@ -321,6 +321,25 @@ textarea.input { resize: vertical; font-family: Consolas, monospace; font-size: 
   to { opacity: 1; transform: none; }
 }
 
+/* 崩溃诊断卡片 */
+.crash-card { border-left: 3px solid #e2574c; }
+.crash-card h3 { color: #c8443a; }
+.crash-body { padding: 4px 2px 2px; }
+.crash-hint { margin: 0 0 8px; font-size: 13px; line-height: 1.6; }
+.crash-detail { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+.crash-excerpt {
+  margin: 0;
+  padding: 8px 10px;
+  background: #fbf4f3;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 120px;
+  overflow: auto;
+}
+
 /* 详情页：前置资源 */
 .dep-sec { margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
 .dep-title { font-size: 12px; color: var(--muted); padding: 2px 8px 6px; }

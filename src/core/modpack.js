@@ -8,6 +8,7 @@ import { installVersion, installFabric } from './install.js';
 import { installLoader } from './forge.js';
 import { setVersionMeta } from './store.js';
 import { versions as mrVersions, primaryFile } from './modrinth.js';
+import { fileInfo as cfFileInfo } from './curseforge.js';
 import * as tasks from './tasks.js';
 
 function safeName(name) {
@@ -200,4 +201,123 @@ export async function installMrpackFromFile(filePath, task, titleHint) {
     },
     task
   );
+}
+
+/* ================= CurseForge .zip 整合包 ================= */
+
+/** CurseForge 的 manifest.json：minecraft.version + modLoaders + files[] */
+export function readCfManifest(buf) {
+  const entries = listZip(buf);
+  const entry = entries.find((e) => e.name === 'manifest.json');
+  if (!entry) throw new Error('这个压缩包里没有 manifest.json，不是 CurseForge 整合包');
+  const man = JSON.parse(readEntry(buf, entry).toString('utf8'));
+  if (!man.minecraft || !man.minecraft.version) throw new Error('manifest.json 里没写 Minecraft 版本');
+  return man;
+}
+
+/** 按扩展名决定放进哪个子目录 */
+function dirForFile(filename) {
+  const f = String(filename || '').toLowerCase();
+  if (f.endsWith('.jar')) return 'mods';
+  if (f.endsWith('.zip')) return 'resourcepacks';
+  return 'mods';
+}
+
+export async function installCurseZipFromFile(filePath, task, titleHint) {
+  const log = (l) => tasks.log(task, l);
+  const buf = fs.readFileSync(filePath);
+  const man = readCfManifest(buf);
+  const mcVersion = man.minecraft.version;
+
+  const loaders = man.minecraft.modLoaders || [];
+  const primary = ((loaders.find((l) => l.primary) || loaders[0] || {}).id) || '';
+  const mm = /^(forge|neoforge|fabric|quilt)-(.+)$/i.exec(primary);
+  const kind = mm ? mm[1].toLowerCase() : 'vanilla';
+  const lver = mm ? mm[2] : '';
+
+  log(`CurseForge 整合包：${man.name || '(未命名)'} · ${mcVersion} · ${kind}${lver ? ' ' + lver : ''}`);
+
+  tasks.patch(task, { stage: `准备基础版本 ${mcVersion}` });
+  if (!fs.existsSync(jsonPath(mcVersion))) {
+    log(`先安装原版 ${mcVersion}`);
+    await installVersion(mcVersion, task);
+  }
+
+  let baseId = mcVersion;
+  if (kind === 'fabric') {
+    tasks.patch(task, { stage: `准备 Fabric ${lver}` });
+    const loaderId = `fabric-loader-${lver}-${mcVersion}`;
+    baseId = fs.existsSync(jsonPath(loaderId)) ? loaderId : (await installFabric(mcVersion, task, lver)).id;
+  } else if (kind === 'forge') {
+    tasks.patch(task, { stage: `准备 Forge ${lver}` });
+    baseId = await installLoader(mcVersion, 'forge', lver, task);
+  } else if (kind === 'neoforge') {
+    tasks.patch(task, { stage: `准备 NeoForge ${lver}` });
+    baseId = await installLoader(mcVersion, 'neoforge', lver, task);
+  } else if (kind === 'quilt') {
+    throw new Error('Quilt 整合包暂不支持');
+  }
+
+  const name = uniqueId(safeName(titleHint || man.name || '整合包'));
+  const baseJson = readVersionJson(baseId);
+  const instJson = { ...baseJson, id: name };
+  instJson.jar = baseJson.inheritsFrom || baseId;
+  delete instJson.__manifestType;
+  writeVersionJson(name, instJson);
+  const gameDir = versionDir(name);
+  ensureDir(gameDir);
+  log(`创建实例：${name} → ${gameDir}`);
+
+  tasks.patch(task, { stage: '解压覆盖文件（overrides）' });
+  const ovDir = man.overrides || 'overrides';
+  let ov = extractPrefix(buf, ovDir, gameDir);
+  ov += extractPrefix(buf, 'client-overrides', gameDir);
+  log(`覆盖文件 ${ov} 个`);
+
+  const files = (man.files || []).filter((f) => f.required !== false);
+  tasks.patch(task, { stage: `下载整合包文件（${files.length} 个）`, total: files.length, done: 0 });
+  let done = 0;
+  const errors = await pool(files, 4, async (f) => {
+    const info = await cfFileInfo(f.projectID, f.fileID);
+    if (!info.url) throw new Error(`${info.filename} 没有可下载地址`);
+    const dest = path.join(gameDir, dirForFile(info.filename), info.filename);
+    await download(info.url, dest, { size: info.size, timeout: 300000 });
+    done++;
+    tasks.patch(task, { done });
+  });
+  if (errors.length) {
+    log(`有 ${errors.length} 个文件没下下来，例如 ${errors[0].item.projectID}/${errors[0].item.fileID}：${errors[0].error.message}`);
+    log('（CurseForge 需要 API Key，且直链在国内经常 403；先到「设置」里填 Key，必要时挂代理）');
+  }
+
+  setVersionMeta(name, {
+    type: 'modpack',
+    loader: kind,
+    loaderVersion: lver,
+    mcVersion,
+    isolated: true,
+    description: man.summary || '',
+    installedAt: Date.now(),
+    baseVersion: baseId,
+  });
+
+  tasks.patch(task, { done: 100 });
+  return { id: name, gameDir, failed: errors.length };
+}
+
+/** 认格式：Modrinth 的 .mrpack 还是 CurseForge 的 .zip */
+export function detectPackType(buf) {
+  const names = listZip(buf).map((e) => e.name);
+  if (names.includes('modrinth.index.json')) return 'mrpack';
+  if (names.includes('manifest.json')) return 'curseforge';
+  return 'unknown';
+}
+
+/** 本地文件导入统一入口 */
+export async function installPackFromFile(filePath, task, titleHint) {
+  const buf = fs.readFileSync(filePath);
+  const t = detectPackType(buf);
+  if (t === 'mrpack') return installMrpackFromFile(filePath, task, titleHint);
+  if (t === 'curseforge') return installCurseZipFromFile(filePath, task, titleHint);
+  throw new Error('认不出这个整合包：既没有 modrinth.index.json，也没有 manifest.json');
 }
