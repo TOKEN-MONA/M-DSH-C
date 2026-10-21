@@ -1134,8 +1134,10 @@ $('#dlBack').addEventListener('click', () => {
   detailState = null;
 });
 
+/** 取大版本号："1.21.1" → "1.21"，"26.3-rc-2" → "26.3" */
 function majorOf(v) {
-  return String(v || '').split('.').slice(0, 2).join('.');
+  const m = /^(\d+)\.(\d+)/.exec(String(v || ''));
+  return m ? `${m[1]}.${m[2]}` : String(v || '');
 }
 
 function cmpMcStr(a, b) {
@@ -1149,12 +1151,8 @@ function cmpMcStr(a, b) {
   return 0;
 }
 
-/** 目标版本的 MC 号在文件里可能只写了 1.18.2，而实例是 1.18 —— 按家族兜底 */
-function pickTab(mcVersions, gv) {
-  if (!gv) return '全部';
-  const list = mcVersions || [];
-  const major = majorOf(gv);
-  if (list.some((x) => majorOf(x) === major)) return major;
+/** 详情页默认停在「全部」：玩家常常记不住某个模组支持哪些版本，先全看一遍再自己收窄 */
+function pickTab() {
   return '全部';
 }
 
@@ -1172,8 +1170,9 @@ async function pickVersion(projectId, title, opts) {
       kind: opts.kind || 'mod',
       cnName: opts.cnName || '',
       source: src,
-      tab: pickTab(d.mcVersions, opts.gameVersion || ''),
+      tab: pickTab(),
       wantGv: opts.gameVersion || '',
+      justOpened: true,
     };
     renderDetail();
   } catch (e) {
@@ -1362,6 +1361,15 @@ function renderDetail() {
       })
     )
   );
+
+  // 默认停在「全部」时，把命中当前实例版本的那一组滚到视野中间
+  if (st.justOpened) {
+    st.justOpened = false;
+    const openGroup = $('#detailVersions .vgroup.open');
+    if (openGroup && openGroup.scrollIntoView) {
+      setTimeout(() => openGroup.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
+    }
+  }
 }
 
 
