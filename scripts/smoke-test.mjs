@@ -188,7 +188,40 @@ console.log('\n== 10. natives 归类 ==');
   check('挑中的是对的', natives[0] && natives[0].path === 'a/lwjgl-3.3.3-natives-windows.jar', natives[0] && natives[0].path);
 }
 
-console.log('\n== 11. 路径与数据目录 ==');
+console.log('\n== 11. inheritsFrom 合并保留 classifier ==');
+{
+  const p = await mod('src/core/paths.js');
+  const v = await mod('src/core/version.js');
+  const root = path.join(TMP, 'merge-mc');
+  p.setMcDir(root);
+  const mk = (id, data) => {
+    fs.mkdirSync(path.join(root, 'versions', id), { recursive: true });
+    fs.writeFileSync(path.join(root, 'versions', id, `${id}.json`), JSON.stringify(data), 'utf8');
+  };
+  mk('parent', {
+    id: 'parent',
+    mainClass: 'a.B',
+    libraries: [
+      { name: 'org.lwjgl:lwjgl:3.3.1', downloads: { artifact: { path: 'l/lwjgl-3.3.1.jar', url: 'https://example.invalid/', size: 1 } } },
+      { name: 'org.lwjgl:lwjgl:3.3.1:natives-windows', downloads: { artifact: { path: 'l/lwjgl-natives-win.jar', url: 'https://example.invalid/', size: 1 } } },
+      { name: 'org.lwjgl:lwjgl:3.3.1:natives-windows-arm64', downloads: { artifact: { path: 'l/lwjgl-natives-arm.jar', url: 'https://example.invalid/', size: 1 } } },
+    ],
+  });
+  mk('child', {
+    id: 'child',
+    inheritsFrom: 'parent',
+    libraries: [
+      { name: 'org.lwjgl:lwjgl:3.3.1', downloads: { artifact: { path: 'l/lwjgl-3.3.1.jar', url: 'https://example.invalid/', size: 1 } } },
+    ],
+  });
+  const m = v.resolveMerged('child');
+  const natNames = m.libraries.filter((l) => /natives-/.test(l.name || '')).map((l) => l.name);
+  check('合并后 natives 变体还在', natNames.length === 2, `got ${natNames.length}: ${natNames.join(',')}`);
+  check('普通库没有被重复保留', m.libraries.filter((l) => l.name === 'org.lwjgl:lwjgl:3.3.1').length === 1);
+  p.setMcDir(path.join(TMP, 'mc'));
+}
+
+console.log('\n== 12. 路径与数据目录 ==');
 {
   const p = await mod('src/core/paths.js');
   p.setMcDir(path.join(TMP, 'mc'));
@@ -199,7 +232,7 @@ console.log('\n== 11. 路径与数据目录 ==');
 }
 
 if (process.argv.includes('--net')) {
-  console.log('\n== 12. 网络（--net）==');
+  console.log('\n== 13. 网络（--net）==');
   const { getManifest } = await mod('src/core/manifest.js');
   try {
     const m = await getManifest();

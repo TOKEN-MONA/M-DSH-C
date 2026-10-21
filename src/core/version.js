@@ -96,8 +96,12 @@ export function hasVersion(id) {
 }
 
 function libKey(name) {
+  // group:artifact[:classifier] -- keep the classifier in the key.
+  // Otherwise natives variants (…:version:natives-windows) collapse into the
+  // plain library and vanish from both classpath and natives.
   const p = String(name || '').split(':');
-  return `${p[0]}:${p[1]}`;
+  const classifier = p.length >= 4 ? p[3] : '';
+  return classifier ? `${p[0]}:${p[1]}:${classifier}` : `${p[0]}:${p[1]}`;
 }
 
 /**
