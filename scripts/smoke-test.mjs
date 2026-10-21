@@ -111,7 +111,19 @@ console.log('\n== 5. 中文词表 ==');
   check('hasCJK 判定', cn.hasCJK('钠') === true && cn.hasCJK('sodium') === false);
 }
 
-console.log('\n== 6. 路径与数据目录 ==');
+console.log('\n== 6. MC百科文本解析 ==');
+{
+  const { parseMcmodText } = await mod('src/core/mcmod.js');
+  const r = parseMcmodText("[农业]  [FD] 农夫乐事 (Farmer's Delight)\nhttps://www.mcmod.cn/class/2820.html");
+  check('解析出一条结果', r.length === 1);
+  check('中文名去掉 [FD] 前缀', r[0] && r[0].cn === '农夫乐事', r[0] && r[0].cn);
+  check('英文名取最后一对括号', r[0] && r[0].en === "Farmer's Delight", r[0] && r[0].en);
+  check('class id 解析正确', r[0] && r[0].id === '2820');
+  check('"被百科娘吃掉" 视为无结果', parseMcmodText('你要找的结果可能已经被百科娘吃掉').length === 0);
+  check('空字符串不报错', parseMcmodText('').length === 0);
+}
+
+console.log('\n== 7. 路径与数据目录 ==');
 {
   const p = await mod('src/core/paths.js');
   p.setMcDir(path.join(TMP, 'mc'));
@@ -122,7 +134,7 @@ console.log('\n== 6. 路径与数据目录 ==');
 }
 
 if (process.argv.includes('--net')) {
-  console.log('\n== 7. 网络（--net）==');
+  console.log('\n== 8. 网络（--net）==');
   const { getManifest } = await mod('src/core/manifest.js');
   try {
     const m = await getManifest();
