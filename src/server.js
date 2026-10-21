@@ -791,11 +791,28 @@ route('POST', /^\/api\/modrinth\/install$/, async (req, res) => {
       if (subdir === 'mods') {
         for (const dep of ver.dependencies || []) {
           if (dep.dependency_type !== 'required' || !dep.project_id) continue;
-          const dv = await modrinth.latestFor(dep.project_id, gv, ld);
+
+          // Modrinth 会明确给出「这个模组要哪个前置版本」。
+          // 必须照它来——MC 的模组是版本锁死的，前置乱升到最新版会直接炸整合包。
+          let dv = null;
+          if (dep.version_id) {
+            try {
+              const list = await modrinth.versions(dep.project_id);
+              dv = list.find((v) => v.id === dep.version_id) || null;
+            } catch {
+              dv = null;
+            }
+          }
+          if (!dv) {
+            // 只有在作者没指定具体版本时，才退回"适配当前 MC 版本的最新版"
+            dv = await modrinth.latestFor(dep.project_id, gv, ld);
+            if (dv) tasks.log(task, `前置 ${dv.name} 没有指定版本，使用适配的最新版 ${dv.versionNumber}`);
+          }
           if (!dv) continue;
+
           const df = modrinth.primaryFile(dv);
           if (df) {
-            tasks.patch(task, { stage: `安装前置依赖 ${dv.name}` });
+            tasks.patch(task, { stage: `安装前置依赖 ${dv.name} ${dv.versionNumber || ''}` });
             await modrinth.installModFile(df, gameDir, task, (l) => tasks.log(task, l), subdir);
           }
         }
