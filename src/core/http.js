@@ -116,10 +116,22 @@ function sha1File(file) {
   });
 }
 
+/** 给 Promise 加超时；超时后清理计时器（避免长期挂死） */
+function raceTimeout(promise, ms, message) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 /**
  * 下载并校验。已存在且校验通过则直接跳过（这是秒装/续传的关键）。
+ * stall：多久收不到数据就判定连接假死（不是总时长，大文件慢速下载不受影响）
  */
-export async function download(url, dest, { sha1, size, timeout = 60000, retries = 2, onData } = {}) {
+export async function download(url, dest, { sha1, size, timeout = 60000, stall = 45000, retries = 2, onData } = {}) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
 
   try {
@@ -145,22 +157,47 @@ export async function download(url, dest, { sha1, size, timeout = 60000, retries
         if (!res.ok) throw new Error(`HTTP ${res.status} (${target})`);
         await new Promise(async (resolve, reject) => {
           const ws = fs.createWriteStream(tmp);
-          ws.on('error', reject);
-          ws.on('finish', resolve);
+          let settled = false;
+          const fail = (e) => {
+            if (settled) return;
+            settled = true;
+            try {
+              ws.destroy();
+            } catch {
+              /* ignore */
+            }
+            reject(e);
+          };
+          ws.on('error', fail);
+          ws.on('finish', () => {
+            if (settled) return;
+            settled = true;
+            resolve();
+          });
           try {
             const reader = res.body.getReader();
             for (;;) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              if (onData) onData(value.length);
-              if (!ws.write(Buffer.from(value))) {
+              let chunk;
+              try {
+                // 每次等数据都有独立超时：连接假死时不会永远挂在这里
+                chunk = await raceTimeout(reader.read(), stall, `超过 ${Math.round(stall / 1000)} 秒没有收到数据`);
+              } catch (e) {
+                try {
+                  ac.abort();
+                } catch {
+                  /* ignore */
+                }
+                throw e;
+              }
+              if (chunk.done) break;
+              if (onData) onData(chunk.value.length);
+              if (!ws.write(Buffer.from(chunk.value))) {
                 await new Promise((r) => ws.once('drain', r));
               }
             }
             ws.end();
           } catch (e) {
-            ws.destroy();
-            reject(e);
+            fail(e);
           }
         });
         clearTimeout(timer);

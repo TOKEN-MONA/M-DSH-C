@@ -96,9 +96,11 @@ async function installClientJar(merged, id, p, task) {
 async function installLibraries(merged, p, task) {
   const { classpath } = resolveLibraries(merged, featuresFor());
   const root = dirs().libraries;
+  const threads = getSettings().downloadThreads || 16;
   let done = 0;
   p.begin(`下载依赖库（${classpath.length} 个）`, 30);
-  const errors = await pool(classpath, getSettings().downloadThreads || 16, async (lib) => {
+
+  const worker = async (lib) => {
     const dest = path.join(root, lib.path);
     if (fs.existsSync(dest) && lib.size && fs.statSync(dest).size === lib.size) {
       done++;
@@ -107,7 +109,18 @@ async function installLibraries(merged, p, task) {
     await download(lib.url, dest, { sha1: lib.sha1, size: lib.size });
     done++;
     if (done % 3 === 0 || done === classpath.length) p.frac(done / classpath.length);
-  });
+  };
+
+  let errors = await pool(classpath, threads, worker);
+  if (errors.length) {
+    // 单个文件抖一下不该毁掉整次安装：失败项降并发重试一轮
+    tasks.log(task, `有 ${errors.length} 个库没下下来，重试一次…`);
+    errors = await pool(
+      errors.map((e) => e.item),
+      4,
+      worker
+    );
+  }
   if (errors.length) {
     const e = errors[0];
     throw new Error(`依赖库下载失败 ${errors.length} 个，例如 ${path.basename(e.item.path)}: ${e.error.message}`);
@@ -147,9 +160,11 @@ async function installAssets(merged, p, task) {
   p.begin(`下载资源文件（${objects.length} 个）`, 55);
 
   const root = path.join(dirs().assets, 'objects');
+  const threads = getSettings().downloadThreads || 16;
   let done = 0;
   let bytes = 0;
-  const errors = await pool(objects, getSettings().downloadThreads || 16, async ([name, o]) => {
+
+  const worker = async ([name, o]) => {
     const sub = o.hash.slice(0, 2);
     const dest = path.join(root, sub, o.hash);
     if (!(fs.existsSync(dest) && fs.statSync(dest).size === o.size)) {
@@ -161,7 +176,17 @@ async function installAssets(merged, p, task) {
       p.frac(done / Math.max(1, objects.length));
       tasks.patch(task, { speed: bytes });
     }
-  });
+  };
+
+  let errors = await pool(objects, threads, worker);
+  if (errors.length) {
+    tasks.log(task, `有 ${errors.length} 个资源文件没下下来，重试一次…`);
+    errors = await pool(
+      errors.map((e) => e.item),
+      4,
+      worker
+    );
+  }
   if (errors.length) {
     throw new Error(`资源下载失败 ${errors.length} 个: ${errors[0].error.message}`);
   }
