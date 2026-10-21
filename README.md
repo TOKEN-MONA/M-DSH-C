@@ -112,6 +112,18 @@ Azure 应用要能用于这条流程，必须同时满足三个条件（缺一�
    └─ app.manifest     应用清单（asInvoker / 高 DPI）
 ```
 
+## 开发
+
+```powershell
+node scripts\smoke-test.mjs          # 纯逻辑冒烟测试（CI 跑的就是这个）
+node scripts\smoke-test.mjs --net    # 额外检查 Mojang / Modrinth 可达性
+```
+
+冒烟测试覆盖了几个踩过坑的地方：zip 条目名分隔符（反斜杠导致 overrides 静默丢失）、
+规则求值（os / features）、依赖库解析、maven 坐标转换、中文词表正查与反查、路径解析。
+
+改完代码先跑这个，再提交。
+
 ## 已知限制
 
 - 只支持 Windows
