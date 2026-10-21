@@ -1,16 +1,22 @@
 import crypto from 'node:crypto';
 import { getSettings, getAccounts, saveAccounts } from './store.js';
 
-// 本项目自己注册的 Azure 应用。Microsoft 登录能用，但 Mojang 的
-// Minecraft API 还有一层独立白名单，自注册应用默认进不去（403 Invalid app registration）。
-// 等哪天申请进白名单了，把它改成默认即可。
+// 本项目自己注册的 Azure 应用（"Minecraft D-S-H Project"）。
+// 已向 Mojang 提交 Minecraft API 访问权限申请，审批中。
 export const PROJECT_CLIENT_ID = 'bd0e57f1-7ba4-4cea-8ed5-20c44ff9f6f5';
 
-// 默认用的 client ID：必须是一个 **Mojang 认可**的应用，否则 login_with_xbox 会 403。
-const BUILTIN_CLIENT_ID = 'c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb';
+// Mojang 对 Minecraft API 有独立于 Azure 的白名单：自注册应用在获批之前，
+// 微软账号和 Xbox 认证都能过，但最后一步 login_with_xbox 会返回
+// 403 Invalid app registration。所以获批前用一个能被接受的应用 ID 顶上。
+const TEMP_CLIENT_ID = 'c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb';
 
-// 上面那个配置有问题时临时用的公共 ID，保证登录不至于完全用不了。
-const FALLBACK_CLIENT_ID = 'c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb';
+// ⚠ 申请通过后把这里改成 false，就会切回本项目自己的应用 ID。
+const USE_TEMP_CLIENT_ID = true;
+
+const BUILTIN_CLIENT_ID = USE_TEMP_CLIENT_ID ? TEMP_CLIENT_ID : PROJECT_CLIENT_ID;
+
+// 自己填的 ID 配置有误时（AADSTS700016 / AADSTS50059 等）的兜底
+const FALLBACK_CLIENT_ID = TEMP_CLIENT_ID;
 const SCOPE = 'XboxLive.signin offline_access';
 const DEVICE_CODE_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode';
 const TOKEN_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token';

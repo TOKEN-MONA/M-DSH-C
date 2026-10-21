@@ -60,10 +60,19 @@ powershell -ExecutionPolicy Bypass -File build\build.ps1
 
 密码全程只输在微软自己的页面上。
 
-**关于应用 ID**：`src/core/auth.js` 里的 `BUILTIN_CLIENT_ID` 是一个公共应用身份。
-注意：Mojang 对 Minecraft API 有**独立的允许列表**，自注册的 Azure 应用即使 Azure 配置全对，
-也会在最后一步报 `403 Invalid app registration`。要么用已获批准的应用 ID，要么走
-<https://aka.ms/mce-reviewappid> 提交申请。
+**关于应用 ID 的现状**：本项目已注册自己的 Azure 应用（client ID `bd0e57f1-…`），
+但 Mojang 对 Minecraft API 还有一层**独立于 Azure 的允许列表**，新应用必须先申请才能调用，
+否则最后一步会返回 `403 Invalid app registration`。
+
+申请审核中，所以代码里暂时借用了一个公开的应用 ID 顶上。相关逻辑在 `src/core/auth.js`：
+
+```js
+export const PROJECT_CLIENT_ID = 'bd0e57f1-…';  // 本项目自己的应用
+const TEMP_CLIENT_ID      = 'c36a9fb6-…';      // 获批前临时顶替
+const USE_TEMP_CLIENT_ID  = true;              // ← 获批后改成 false
+```
+
+想用自己的应用，也可以在「设置 → 高级 → 微软应用 ID」里直接填。
 
 Azure 应用要能用于这条流程，必须同时满足三个条件（缺一个都会在设备码阶段报 AADSTS 错）：
 
