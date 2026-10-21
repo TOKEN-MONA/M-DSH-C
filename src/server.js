@@ -18,6 +18,7 @@ import * as launcher from './core/launch.js';
 import * as modrinth from './core/modrinth.js';
 import { installMrpack, installMrpackFromFile } from './core/modpack.js';
 import * as mods from './core/mods.js';
+import { systemMemory, effectiveMemory } from './core/memory.js';
 import * as cn from './core/cn.js';
 import { searchMcmod } from './core/mcmod.js';
 import * as cf from './core/curseforge.js';
@@ -380,6 +381,8 @@ function statePayload() {
     account: acc.current ? { type: acc.current.type, name: acc.current.name, uuid: acc.current.uuid } : null,
     accounts: (acc.list || []).map((a) => ({ type: a.type, name: a.name, uuid: a.uuid })),
     versions: scanInstalled(),
+    system: systemMemory(),
+    memory: effectiveMemory(store.getSettings()),
     platform: process.platform,
     node: process.version,
     dataRoot: DATA_ROOT,
@@ -425,6 +428,7 @@ route('POST', /^\/api\/settings$/, async (req, res) => {
     'downloadThreads',
     'maxMemoryMB',
     'minMemoryMB',
+    'autoMemory',
     'javaPath',
     'jvmArgs',
     'windowWidth',

@@ -129,6 +129,8 @@ async function refresh() {
   state.account = data.account;
   state.accounts = data.accounts || [];
   state.versions = data.versions || [];
+  state.system = data.system || null;
+  state.memory = data.memory || null;
   if (!state.selected || !state.versions.some((v) => v.id === state.selected)) {
     state.selected = state.settings.selectedVersion || (state.versions[0] && state.versions[0].id) || '';
   }
@@ -763,12 +765,36 @@ $('#btnClearAccounts').addEventListener('click', async () => {
 
 /* ---------------- 设置 ---------------- */
 
+function renderMemBar(maxMB) {
+  const sys = state.system || { totalMB: 8192, usedMB: 2048 };
+  const total = Math.max(1, sys.totalMB);
+  const usedPct = Math.min(100, (sys.usedMB / total) * 100);
+  const gamePct = Math.min(100 - usedPct, (maxMB / total) * 100);
+  $('#membarUsed').style.width = usedPct + '%';
+  $('#membarGame').style.width = Math.max(0, gamePct) + '%';
+  const gb = (n) => (n / 1024).toFixed(1) + ' GB';
+  $('#memUsedLabel').textContent = `已用 ${gb(sys.usedMB)} / ${gb(sys.totalMB)}`;
+  $('#memGameLabel').textContent = `游戏分配 ${gb(maxMB)}`;
+}
+
 function renderSettings() {
   const s = state.settings;
-  $('#maxMem').value = s.maxMemoryMB;
-  $('#maxMemVal').textContent = s.maxMemoryMB + ' MB';
-  $('#minMem').value = s.minMemoryMB;
-  $('#minMemVal').textContent = s.minMemoryMB + ' MB';
+  const auto = s.autoMemory !== false;
+  const mem = state.memory || { maxMB: s.maxMemoryMB || 4096, minMB: s.minMemoryMB || 1024 };
+
+  $('#memAuto').checked = auto;
+  $('#memCustom').checked = !auto;
+  $('#maxMem').disabled = auto;
+  $('#minMem').disabled = auto;
+
+  const maxVal = auto ? mem.maxMB : s.maxMemoryMB || 4096;
+  $('#maxMem').value = Math.min(32768, Math.max(1024, maxVal));
+  $('#maxMemVal').textContent = maxVal + ' MB';
+  $('#minMem').value = Math.min(16384, Math.max(512, s.minMemoryMB || 1024));
+  $('#minMemVal').textContent = (s.minMemoryMB || 1024) + ' MB';
+
+  renderMemBar(maxVal);
+
   $('#downloadSource').value = s.downloadSource || 'auto';
   $('#threads').value = s.downloadThreads || 32;
   $('#jvmArgs').value = s.jvmArgs || '';
@@ -777,19 +803,47 @@ function renderSettings() {
   $('#gameDir').value = s.gameDir || '';
   $('#dirHint').textContent = '当前：' + (s.gameDir || '(未设置)');
 
-  const totalGB = Math.round((navigator.deviceMemory || 8));
-  $('#memHint').textContent = `提示：4~8 GB 的整合包给 6~8 GB；别把最大内存设成超过物理内存。浏览器检测到的设备内存约 ${totalGB} GB。`;
+  $('#memHint').textContent = auto
+    ? `自动配置：按物理内存的 16% 推荐（当前 ${mem.maxMB} MB）。整合包跑不动的话切到自定义调大。`
+    : '自定义：4~8 GB 的整合包给 6~8 GB，别超过物理内存。';
 }
 
-$('#maxMem').addEventListener('input', (e) => ($('#maxMemVal').textContent = e.target.value + ' MB'));
-$('#minMem').addEventListener('input', (e) => ($('#minMemVal').textContent = e.target.value + ' MB'));
+// 内存相关改动即时保存（PCL 的做法：拖完就记住，不用再点保存）
+async function saveMemory(patch) {
+  try {
+    await api('/api/settings', { body: patch });
+    await refresh();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+$('#memAuto').addEventListener('change', () => saveMemory({ autoMemory: true }));
+$('#memCustom').addEventListener('change', () => saveMemory({ autoMemory: false }));
+
+$('#maxMem').addEventListener('input', (e) => {
+  if ($('#maxMem').disabled) return;
+  $('#maxMemVal').textContent = e.target.value + ' MB';
+  renderMemBar(Number(e.target.value));
+});
+$('#maxMem').addEventListener('change', () => {
+  if ($('#maxMem').disabled) return;
+  saveMemory({ maxMemoryMB: Number($('#maxMem').value) });
+});
+
+$('#minMem').addEventListener('input', (e) => {
+  if ($('#minMem').disabled) return;
+  $('#minMemVal').textContent = e.target.value + ' MB';
+});
+$('#minMem').addEventListener('change', () => {
+  if ($('#minMem').disabled) return;
+  saveMemory({ minMemoryMB: Number($('#minMem').value) });
+});
 
 $('#btnSaveSettings').addEventListener('click', async () => {
   try {
     await api('/api/settings', {
       body: {
-        maxMemoryMB: Number($('#maxMem').value),
-        minMemoryMB: Number($('#minMem').value),
         downloadSource: $('#downloadSource').value,
         downloadThreads: Number($('#threads').value),
         jvmArgs: $('#jvmArgs').value,

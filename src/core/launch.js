@@ -6,6 +6,7 @@ import { resolveMerged, resolveLibraries, jarPathFor, nativesDir, expandArgs, su
 import { getSettings, getVersionMeta, setVersionMeta } from './store.js';
 import { pickJava, installJava, javaMajorFor, javaComponentFor, javaExeInDir } from './java.js';
 import { extractNatives, featuresFor, installVersion } from './install.js';
+import { effectiveMemory } from './memory.js';
 import { refreshAccount, currentAccount } from './auth.js';
 import * as tasks from './tasks.js';
 
@@ -80,6 +81,7 @@ export function buildCommand(versionId, account, javaPath) {
   };
 
   const s = getSettings();
+  const mem = effectiveMemory(s);
   const userJvm = (s.jvmArgs || '').split(/\s+/).filter(Boolean);
 
   const jvm = expandArgs(toJvmList(merged), features).map((a) => substitute(a, vars));
@@ -94,9 +96,9 @@ export function buildCommand(versionId, account, javaPath) {
 
   const gameArgs = expandArgs(toGameList(merged), features).map((a) => substitute(a, vars));
 
-  const mem = [
-    `-Xmx${s.maxMemoryMB}m`,
-    `-Xms${Math.min(s.minMemoryMB, s.maxMemoryMB)}m`,
+  const memArgs = [
+    `-Xmx${mem.maxMB}m`,
+    `-Xms${mem.minMB}m`,
     '-Dfile.encoding=UTF-8',
     '-Dstdout.encoding=UTF-8',
     '-Dstderr.encoding=UTF-8',
@@ -111,11 +113,11 @@ export function buildCommand(versionId, account, javaPath) {
     '-Dfml.ignoreInvalidMinecraftCertificates=true',
     '-Dfml.ignorePatchDiscrepancies=true',
   ];
-  if (logArg) mem.push(logArg);
+  if (logArg) memArgs.push(logArg);
 
-  const args = [...mem, ...userJvm, ...jvm, merged.mainClass, ...gameArgs];
+  const args = [...memArgs, ...userJvm, ...jvm, merged.mainClass, ...gameArgs];
 
-  return { args, gameDir, javaPath, merged, meta, jarId, clientJar };
+  return { args, gameDir, javaPath, merged, meta, jarId, clientJar, memory: mem };
 }
 
 export async function ensureRunnable(versionId, task) {

@@ -373,6 +373,14 @@ textarea.input { resize: vertical; font-family: Consolas, monospace; font-size: 
 .setting-row .val { font-size: 13px; color: var(--accent); font-weight: 600; width: 90px; text-align: right; }
 .setting-row.col > label { display: block; width: auto; margin-bottom: 6px; }
 
+/* 内存分配 */
+.radio-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 12px; }
+.membar-wrap { margin-top: 14px; }
+.membar { height: 10px; background: #eef1f6; border-radius: 6px; overflow: hidden; display: flex; }
+.membar-used { background: #2f6bd8; height: 100%; transition: width .25s ease; }
+.membar-game { background: #9cc0f5; height: 100%; transition: width .25s ease; }
+.membar-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; }
+
 .device-box {
   border: 1px dashed #c9d6ea; background: #f7faff;
   border-radius: 10px; padding: 14px; margin: 12px 0; text-align: center;

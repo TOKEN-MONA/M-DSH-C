@@ -314,7 +314,11 @@
       </header>
 
       <div class="card">
-        <h3>内存</h3>
+        <h3>内存分配</h3>
+        <div class="radio-row">
+          <label class="check"><input type="radio" name="memMode" id="memAuto" value="auto" /> 自动配置（按物理内存推荐）</label>
+          <label class="check"><input type="radio" name="memMode" id="memCustom" value="custom" /> 自定义</label>
+        </div>
         <div class="setting-row">
           <label>最大内存</label>
           <input type="range" id="maxMem" min="1024" max="32768" step="512" />
@@ -324,6 +328,16 @@
           <label>最小内存</label>
           <input type="range" id="minMem" min="512" max="16384" step="512" />
           <span class="val" id="minMemVal">1024 MB</span>
+        </div>
+        <div class="membar-wrap">
+          <div class="membar">
+            <div class="membar-used" id="membarUsed"></div>
+            <div class="membar-game" id="membarGame"></div>
+          </div>
+          <div class="membar-labels">
+            <span id="memUsedLabel"></span>
+            <span id="memGameLabel"></span>
+          </div>
         </div>
         <p class="hint" id="memHint"></p>
       </div>

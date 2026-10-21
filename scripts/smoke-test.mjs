@@ -123,7 +123,17 @@ console.log('\n== 6. MC百科文本解析 ==');
   check('空字符串不报错', parseMcmodText('').length === 0);
 }
 
-console.log('\n== 7. 路径与数据目录 ==');
+console.log('\n== 7. 内存策略 ==');
+{
+  const { autoMaxMB } = await mod('src/core/memory.js');
+  check('4GB 机器至少给 1GB', autoMaxMB(4096) >= 1024, String(autoMaxMB(4096)));
+  check('8GB 机器在 1~3GB 之间', autoMaxMB(8192) >= 1024 && autoMaxMB(8192) <= 3072, String(autoMaxMB(8192)));
+  check('32GB 机器在 4~8GB 之间', autoMaxMB(32371) >= 4096 && autoMaxMB(32371) <= 8192, String(autoMaxMB(32371)));
+  check('128GB 机器上限 8GB', autoMaxMB(131072) <= 8192, String(autoMaxMB(131072)));
+  check('结果按 512MB 对齐', autoMaxMB(32371) % 512 === 0, String(autoMaxMB(32371)));
+}
+
+console.log('\n== 8. 路径与数据目录 ==');
 {
   const p = await mod('src/core/paths.js');
   p.setMcDir(path.join(TMP, 'mc'));
@@ -134,7 +144,7 @@ console.log('\n== 7. 路径与数据目录 ==');
 }
 
 if (process.argv.includes('--net')) {
-  console.log('\n== 8. 网络（--net）==');
+  console.log('\n== 9. 网络（--net）==');
   const { getManifest } = await mod('src/core/manifest.js');
   try {
     const m = await getManifest();

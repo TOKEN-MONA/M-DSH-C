@@ -7,6 +7,7 @@ const DEFAULTS = {
   downloadThreads: 32,
   maxMemoryMB: 4096,
   minMemoryMB: 1024,
+  autoMemory: true,
   javaPath: '',
   gameDir: '',
   jvmArgs: '',
