@@ -321,6 +321,10 @@ textarea.input { resize: vertical; font-family: Consolas, monospace; font-size: 
   to { opacity: 1; transform: none; }
 }
 
+/* 详情页：前置资源 */
+.dep-sec { margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
+.dep-title { font-size: 12px; color: var(--muted); padding: 2px 8px 6px; }
+
 .vgroup {
   border: 1px solid var(--line); border-radius: 10px;
   margin-bottom: 8px; overflow: hidden; background: #fff;

@@ -80,6 +80,13 @@ export async function project(id) {
   return api(`/project/${encodeURIComponent(id)}`);
 }
 
+/** 批量取项目信息（用于展示前置资源） */
+export async function projects(ids) {
+  const uniq = [...new Set((ids || []).filter(Boolean))].slice(0, 20);
+  if (!uniq.length) return [];
+  return api(`/projects?ids=${encodeURIComponent(JSON.stringify(uniq))}`);
+}
+
 /**
  * 按名字猜 slug 直接取项目。
  * Modrinth 搜索按词切分，标题叫 `tinkers_ingenuity` 的项目搜 "Tinkers Ingenuity" 是 0 命中，

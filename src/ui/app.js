@@ -1116,6 +1116,7 @@ $('#btnModsDir').addEventListener('click', () => {
 /* ================= 项目详情页 ================= */
 
 let detailState = null;
+const detailStack = []; // 点前置进来时，记住上一层，返回能退回去
 
 function showDetail(on) {
   $('#page-download').classList.toggle('detail-open', on);
@@ -1124,6 +1125,11 @@ function showDetail(on) {
 }
 
 $('#dlBack').addEventListener('click', () => {
+  if (detailStack.length) {
+    detailState = detailStack.pop();
+    renderDetail();
+    return;
+  }
   showDetail(false);
   detailState = null;
 });
@@ -1159,6 +1165,7 @@ async function pickVersion(projectId, title, opts) {
   $('#detailVersions').innerHTML = '';
   try {
     const src = opts.source || 'modrinth';
+    if (detailState) detailStack.push(detailState);
     const d = await api(`/api/project?project=${encodeURIComponent(projectId)}&source=${encodeURIComponent(src)}`);
     detailState = {
       data: d,
@@ -1271,7 +1278,29 @@ function renderDetail() {
       <button class="btn mini primary" data-install-file="${esc(f.id)}">安装</button>
     </div>`;
 
+  // 前置资源：只展示、可点进去自己选版本（不偷偷替玩家决定）
+  const deps = data.depProjects || [];
+  const depBlock = deps.length
+    ? `<div class="dep-sec">
+        <div class="dep-title">前置资源（点进去自己选版本）</div>
+        ${deps
+          .map(
+            (d) => `
+          <div class="row clickable" data-dep="${esc(d.id)}" data-dep-title="${esc(d.title)}" data-dep-src="${esc(d.source || 'modrinth')}">
+            <img class="icon-img" src="${esc(d.icon || '')}" onerror="this.style.visibility='hidden'"/>
+            <div class="row-main">
+              <div class="row-title">${esc(d.title)}</div>
+              <div class="row-sub">${esc(String(d.description || '').slice(0, 90))}</div>
+            </div>
+            <div class="row-arrow">›</div>
+          </div>`
+          )
+          .join('')}
+      </div>`
+    : '';
+
   $('#detailVersions').innerHTML = `
+    ${depBlock}
     <div class="vtabs">${tabs
       .map((t) => `<button class="vtab${t === tab ? ' active' : ''}" data-vtab="${esc(t)}">${esc(t)}</button>`)
       .join('')}</div>
@@ -1321,6 +1350,17 @@ function renderDetail() {
       e.stopPropagation();
       startInstall(p.id, b.dataset.installFile, p.title, kind, source);
     })
+  );
+
+  $$('#detailVersions [data-dep]').forEach((row) =>
+    row.addEventListener('click', () =>
+      pickVersion(row.dataset.dep, row.dataset.depTitle, {
+        kind,
+        source: row.dataset.depSrc,
+        gameVersion: st.wantGv,
+        cnName: '',
+      })
+    )
   );
 }
 

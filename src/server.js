@@ -711,6 +711,30 @@ route('GET', /^\/api\/project$/, async (req, res, m, url) => {
     for (const v of vers) for (const g of v.gameVersions || []) if (/^\d/.test(g)) mcSet.add(g);
     const mcVersions = [...mcSet].sort(cmpMc).reverse();
 
+    // 汇总所有版本里「必需」的前置项目，供详情页展示（玩家可以点进去自己挑版本）
+    const depIds = [];
+    for (const v of vers) {
+      for (const d of v.dependencies || []) {
+        if (d.dependency_type === 'required' && d.project_id && !depIds.includes(d.project_id)) depIds.push(d.project_id);
+      }
+    }
+    let depProjects = [];
+    if (depIds.length) {
+      try {
+        depProjects = (await modrinth.projects(depIds)).map((x) => ({
+          id: x.id,
+          slug: x.slug,
+          title: x.title,
+          description: x.description || '',
+          icon: x.icon_url || '',
+          downloads: x.downloads || 0,
+          source: 'modrinth',
+        }));
+      } catch {
+        depProjects = [];
+      }
+    }
+
     send(res, 200, {
       project: {
         id: p.id,
@@ -728,6 +752,7 @@ route('GET', /^\/api\/project$/, async (req, res, m, url) => {
       },
       versions: vers,
       mcVersions,
+      depProjects,
     });
   } catch (e) {
     send(res, 500, { error: e.message });
