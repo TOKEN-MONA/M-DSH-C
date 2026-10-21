@@ -816,36 +816,14 @@ route('POST', /^\/api\/modrinth\/install$/, async (req, res) => {
       tasks.patch(task, { stage: `下载 ${ver.versionNumber}` });
       await modrinth.installModFile(file, gameDir, task, (l) => tasks.log(task, l), subdir);
 
-      // 只有模组才自动补 required 前置
-      if (subdir === 'mods') {
-        for (const dep of ver.dependencies || []) {
-          if (dep.dependency_type !== 'required' || !dep.project_id) continue;
-
-          // Modrinth 会明确给出「这个模组要哪个前置版本」。
-          // 必须照它来——MC 的模组是版本锁死的，前置乱升到最新版会直接炸整合包。
-          let dv = null;
-          if (dep.version_id) {
-            try {
-              const list = await modrinth.versions(dep.project_id);
-              dv = list.find((v) => v.id === dep.version_id) || null;
-            } catch {
-              dv = null;
-            }
-          }
-          if (!dv) {
-            // 只有在作者没指定具体版本时，才退回"适配当前 MC 版本的最新版"
-            dv = await modrinth.latestFor(dep.project_id, gv, ld);
-            if (dv) tasks.log(task, `前置 ${dv.name} 没有指定版本，使用适配的最新版 ${dv.versionNumber}`);
-          }
-          if (!dv) continue;
-
-          const df = modrinth.primaryFile(dv);
-          if (df) {
-            tasks.patch(task, { stage: `安装前置依赖 ${dv.name} ${dv.versionNumber || ''}` });
-            await modrinth.installModFile(df, gameDir, task, (l) => tasks.log(task, l), subdir);
-          }
-        }
+      // 不再自动安装前置。
+      // 原因：MC 的模组版本锁得很死，而且不少模组后来把前置内置了、或者换了写法，
+      // 自动装一个"作者当时指定的版本"反而可能装错。详情页有「前置资源」入口，
+      // 玩家自己点进去挑版本；整合包则完全由整合包定义，不需要这一套。
+      if (subdir === 'mods' && (ver.dependencies || []).some((d) => d.dependency_type === 'required')) {
+        tasks.log(task, '这个模组有前置依赖，需要的话去详情页「前置资源」里自己装');
       }
+
       tasks.patch(task, { done: 100 });
       tasks.finish(task, null);
     } catch (e) {
