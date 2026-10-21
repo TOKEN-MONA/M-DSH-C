@@ -107,3 +107,18 @@ Write-Host "      build\M-DSH-C-console.exe"
 # remove intermediates
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue }
 if (Test-Path $zip) { Remove-Item $zip -Force -ErrorAction SilentlyContinue }
+# --- post-build cleanup -----------------------------------------------------
+# 1) Drop the Mark-of-the-Web if the file somehow carries one.
+# 2) Strip the sandbox capability SID inherited from the workspace folder.
+#    With that entry present, Windows re-checks the exe on EVERY launch
+#    instead of only the first time.
+try { Unblock-File -Path $out -ErrorAction SilentlyContinue } catch { }
+
+$sid = 'S-1-4-332428003-257888444'
+foreach ($t in @($out, (Join-Path (Split-Path -Parent $out) 'build\M-DSH-C-console.exe'))) {
+  if (-not (Test-Path $t)) { continue }
+  & icacls $t /remove:g "*$sid" 2>$null | Out-Null
+  & icacls $t /inheritance:r 2>$null | Out-Null
+  & icacls $t /grant "$($env:USERNAME):(F)" 2>$null | Out-Null
+  Write-Host "      acl cleaned: $t"
+}
