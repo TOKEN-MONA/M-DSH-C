@@ -36,7 +36,9 @@ export function listZip(buf) {
     const localOffset = buf.readUInt32LE(p + 42);
 
     const rawName = buf.subarray(p + 46, p + 46 + nameLen);
-    const name = flags & 0x800 ? rawName.toString('utf8') : rawName.toString('utf8');
+    // 有些打包工具（比如 PowerShell 的 Compress-Archive）写的是反斜杠，
+    // 统一成正斜杠，否则做前缀匹配时会对不上
+    const name = rawName.toString('utf8').replace(/\\/g, '/');
 
     const lnameLen = buf.readUInt16LE(localOffset + 26);
     const lextraLen = buf.readUInt16LE(localOffset + 28);
