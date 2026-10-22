@@ -6,7 +6,7 @@ import { listZip, readEntry } from './zip.js';
 import { readVersionJson, writeVersionJson, versionDir, jsonPath } from './version.js';
 import { installVersion, installFabric } from './install.js';
 import { installLoader } from './forge.js';
-import { setVersionMeta } from './store.js';
+import { setVersionMeta, getSettings } from './store.js';
 import { versions as mrVersions, primaryFile } from './modrinth.js';
 import { fileInfo as cfFileInfo } from './curseforge.js';
 import * as tasks from './tasks.js';
@@ -96,10 +96,10 @@ async function installFromBuffer(buf, meta, task) {
 
   // 3. 建独立实例
   const name = uniqueId(safeName(meta.title || index.name || '整合包'));
-  const baseJson = readVersionJson(baseId);
-  const instJson = { ...baseJson, id: name };
-  instJson.jar = baseJson.inheritsFrom || baseId;
-  delete instJson.__manifestType;
+  // 实例 json 保持最小：只继承加载器版本，不复制它的 libraries/arguments。
+  // 复制会导致父子参数被拼两遍（launchTarget 重复 → joptsimple 直接报错），
+  // 而且会带上 jar 字段引发 "Modules minecraft and _1._21._1" 冲突。
+  const instJson = { id: name, inheritsFrom: baseId, type: 'release' };
   writeVersionJson(name, instJson);
   const gameDir = versionDir(name);
   ensureDir(gameDir);
@@ -116,7 +116,9 @@ async function installFromBuffer(buf, meta, task) {
   tasks.patch(task, { stage: `下载整合包文件（${files.length} 个）`, total: files.length, done: 0 });
   let done = 0;
   let bytes = 0;
-  const errors = await pool(files, 8, async (f) => {
+  // 并发跟随设置（默认 16，最多 32）：原来写死 8，装大包比 PCL 慢一截
+  const threads = Math.min(32, Math.max(8, Number(getSettings().downloadThreads) || 16));
+  const errors = await pool(files, threads, async (f) => {
     const url = (f.downloads && f.downloads[0]) || null;
     if (!url) {
       // 作者没给直链（常见于 CurseForge 禁止第三方分发），跳过但计入进度
@@ -264,10 +266,10 @@ export async function installCurseZipFromFile(filePath, task, titleHint) {
   }
 
   const name = uniqueId(safeName(titleHint || man.name || '整合包'));
-  const baseJson = readVersionJson(baseId);
-  const instJson = { ...baseJson, id: name };
-  instJson.jar = baseJson.inheritsFrom || baseId;
-  delete instJson.__manifestType;
+  // 实例 json 保持最小：只继承加载器版本，不复制它的 libraries/arguments。
+  // 复制会导致父子参数被拼两遍（launchTarget 重复 → joptsimple 直接报错），
+  // 而且会带上 jar 字段引发 "Modules minecraft and _1._21._1" 冲突。
+  const instJson = { id: name, inheritsFrom: baseId, type: 'release' };
   writeVersionJson(name, instJson);
   const gameDir = versionDir(name);
   ensureDir(gameDir);
@@ -282,7 +284,8 @@ export async function installCurseZipFromFile(filePath, task, titleHint) {
   const files = (man.files || []).filter((f) => f.required !== false);
   tasks.patch(task, { stage: `下载整合包文件（${files.length} 个）`, total: files.length, done: 0 });
   let done = 0;
-  const errors = await pool(files, 4, async (f) => {
+  const threads = Math.min(32, Math.max(8, Number(getSettings().downloadThreads) || 16));
+  const errors = await pool(files, threads, async (f) => {
     const info = await cfFileInfo(f.projectID, f.fileID);
     if (!info.url) throw new Error(`${info.filename} 没有可下载地址`);
     const dest = path.join(gameDir, dirForFile(info.filename), info.filename);

@@ -150,6 +150,7 @@ export async function download(url, dest, { sha1, size, timeout = 60000, stall =
   for (const target of list) {
     for (let attempt = 0; attempt <= retries; attempt++) {
       const tmp = `${dest}.part`;
+      const hasher = sha1 ? crypto.createHash('sha1') : null;
       const ac = new AbortController();
       const timer = setTimeout(() => ac.abort(), timeout);
       try {
@@ -190,6 +191,7 @@ export async function download(url, dest, { sha1, size, timeout = 60000, stall =
                 throw e;
               }
               if (chunk.done) break;
+              if (hasher) hasher.update(Buffer.from(chunk.value));
               if (onData) onData(chunk.value.length);
               if (!ws.write(Buffer.from(chunk.value))) {
                 await new Promise((r) => ws.once('drain', r));
@@ -203,7 +205,7 @@ export async function download(url, dest, { sha1, size, timeout = 60000, stall =
         clearTimeout(timer);
 
         if (sha1) {
-          const got = await sha1File(tmp);
+          const got = hasher.digest('hex');
           if (got !== sha1.toLowerCase()) throw new Error(`SHA1 校验失败 (${target})`);
         } else if (size) {
           const st = fs.statSync(tmp);
