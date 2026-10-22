@@ -10,7 +10,7 @@ import * as tasks from './core/tasks.js';
 import { bus } from './core/tasks.js';
 import { setSource } from './core/http.js';
 import { getManifest } from './core/manifest.js';
-import { resolveMerged, readVersionJson, jsonPath, jarPathFor } from './core/version.js';
+import { resolveMerged, readVersionJson, jsonPath, jarPathFor, javaMajorOf } from './core/version.js';
 import { installVersion, installFabric, featuresFor } from './core/install.js';
 import { detectJava, installJava } from './core/java.js';
 import * as auth from './core/auth.js';
@@ -360,7 +360,7 @@ function scanInstalled() {
       // 默认全部隔离：和 PCL2 装出来的目录结构一致，存档/mod 才不会“消失”
       isolated: meta.isolated !== undefined ? meta.isolated : true,
       hasJar: fs.existsSync(jarPathFor(json.jar || json.inheritsFrom || d.name)),
-      javaMajor: (json.javaVersion && json.javaVersion.majorVersion) || meta.javaMajor || 8,
+      javaMajor: (json.javaVersion && json.javaVersion.majorVersion) || meta.javaMajor || javaMajorOf(id),
       lastPlayed: meta.lastPlayed || 0,
       playTimeSec: meta.playTimeSec || 0,
       installedAt: meta.installedAt || 0,

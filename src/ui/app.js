@@ -177,7 +177,7 @@ function renderHome() {
     const items = [
       `<span class="badge ${v.loader}">${LOADER_LABEL[v.loader] || v.loader}</span>`,
       `<span class="badge">Minecraft ${esc(v.mcVersion)}</span>`,
-      `<span class="badge">Java ${v.javaMajor}+</span>`,
+      `${v.javaMajor ? `<span class="badge">Java ${v.javaMajor}+</span>` : ""}`,
     ];
     if (v.isolated) items.push('<span class="badge ok">版本隔离</span>');
     badges.innerHTML = items.join('');
@@ -197,7 +197,7 @@ function renderHome() {
     const rows = [
       ['加载器', `${LOADER_LABEL[v.loader] || v.loader}${v.loaderVersion ? ' ' + v.loaderVersion : ''}`],
       ['Minecraft', v.mcVersion],
-      ['需要 Java', v.javaMajor + '+'],
+      ['需要 Java', v.javaMajor ? v.javaMajor + '+' : '未知'],
       ['版本隔离', v.isolated ? '开启' : '关闭'],
       ['累计游玩', v.playTimeSec ? Math.round(v.playTimeSec / 60) + ' 分钟' : '还没玩过'],
     ];

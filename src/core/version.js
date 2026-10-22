@@ -275,3 +275,21 @@ export function expandArgs(list, features) {
 export function substitute(template, map) {
   return String(template).replace(/\$\{([^}]+)\}/g, (m, key) => (key in map ? String(map[key]) : m));
 }
+
+/** 沿 inheritsFrom 链找 Java 大版本；找不到返回 0（未知） */
+export function javaMajorOf(id) {
+  let cursor = id;
+  let guard = 0;
+  while (cursor && guard++ < 12) {
+    let j;
+    try {
+      j = readVersionJson(cursor);
+    } catch {
+      return 0;
+    }
+    if (j.javaVersion && j.javaVersion.majorVersion) return j.javaVersion.majorVersion;
+    cursor = j.inheritsFrom || j.jar || '';
+    if (cursor === id) return 0;
+  }
+  return 0;
+}
