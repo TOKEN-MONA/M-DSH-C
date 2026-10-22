@@ -6,7 +6,8 @@ import { fetchText, download } from './http.js';
 import { detectJava, pickJava } from './java.js';
 import { installVersion } from './install.js';
 import { jarPathFor } from './version.js';
-import { setVersionMeta } from './store.js';
+import { listZip, readEntry } from './zip.js';
+import { setVersionMeta, getSettings } from './store.js';
 import * as tasks from './tasks.js';
 
 const FORGE_META = 'https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml';
@@ -36,11 +37,51 @@ export async function listNeoForge(mcVersion) {
   return all.filter((v) => v.startsWith(`${mc.split('.')[0]}.0.`)).reverse();
 }
 
-function runInstaller(javaExe, jarPath, mcDir, onLine) {
+/**
+ * NeoForge 安装器把 maven.neoforged.net 的地址写死在 install_profile.json 里，
+ * 国内直连必然超时。这里先把它要的库用（会走镜像的）下载器预置好，
+ * 安装器发现 "File exists. Checksum valid." 就直接跳过。
+ */
+export async function preloadNeoForgeLibs(jarFile, mcDir, log) {
+  const buf = fs.readFileSync(jarFile);
+  const entries = listZip(buf);
+  const entry = entries.find((e) => e.name === 'install_profile.json');
+  if (!entry) return { done: 0, failed: 0 };
+  const prof = JSON.parse(readEntry(buf, entry).toString('utf8'));
+  const libs = (prof.libraries || []).filter((l) => {
+    const a = l.downloads && l.downloads.artifact;
+    return a && a.path && a.url && /maven\.neoforged\.net/.test(a.url);
+  });
+  log(`预下载 ${libs.length} 个 NeoForge 库（走镜像）`);
+  let done = 0;
+  let failed = 0;
+  for (const lib of libs) {
+    const a = lib.downloads.artifact;
+    const dest = path.join(mcDir, 'libraries', a.path);
+    if (fs.existsSync(dest) && (!a.size || fs.statSync(dest).size === a.size)) continue;
+    try {
+      await download(a.url, dest, { sha1: a.sha1, size: a.size, timeout: 300000 });
+      done++;
+      if (done % 5 === 0) log(`  已下 ${done}/${libs.length}`);
+    } catch (e) {
+      failed++;
+      log(`  下载失败 ${path.basename(a.path)}：${e.message.slice(0, 60)}`);
+    }
+  }
+  log(`预下载完成：成功 ${done}，失败 ${failed}，其余已存在`);
+  return { done, failed };
+}
+// BMCLAPI 镜像了 maven.neoforged.net，安装器自身连不上时用它
+const NEOFORGE_MIRROR = 'https://bmclapi2.bangbang93.com/maven';
+
+function runInstaller(javaExe, jarPath, mcDir, onLine, mirror) {
+  const args = ['-jar', jarPath, '--installClient', mcDir];
+  // NeoForge 安装器支持 --mirror，能把内嵌的 maven.neoforged.net 地址整体换掉
+  if (mirror) args.push('--mirror', mirror);
   return new Promise((resolve, reject) => {
     const child = execFile(
       javaExe,
-      ['-jar', jarPath, '--installClient', mcDir],
+      args,
       { cwd: mcDir, timeout: 20 * 60 * 1000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
       (err, stdout, stderr) => {
         const all = `${stdout || ''}\n${stderr || ''}`;
@@ -106,6 +147,16 @@ export async function installLoader(mcVersion, loader, version, task) {
 
   tasks.patch(task, { stage: '运行安装器（可能要几分钟）' });
   log(`用 ${java.path} 运行安装器`);
+
+  // NeoForge 的库全在 maven.neoforged.net 上，国内经常直接超时。
+  // 安装器自带 --mirror，换成 BMCLAPI 镜像；万一镜像缺东西，再退回官方重试一次。
+  if (loader === 'neoforge' && getSettings().downloadSource !== 'official') {
+    try {
+      await preloadNeoForgeLibs(jarFile, mcDir, log);
+    } catch (e) {
+      log(`预下载没成功（${e.message.slice(0, 60)}），直接跑安装器`);
+    }
+  }
   await runInstaller(java.path, jarFile, mcDir, log);
 
   const jsonPath = path.join(mcDir, 'versions', expectId, `${expectId}.json`);
