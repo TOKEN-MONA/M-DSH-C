@@ -50,7 +50,19 @@ export function buildCommand(versionId, account, javaPath) {
 
   const { classpath } = resolveLibraries(merged, features);
   const cpList = classpath.map((l) => path.join(dirs().libraries, l.path));
-  cpList.push(clientJar);
+
+  // NeoForge 1.20.5+（"split client"）自带预打补丁的 client jar，
+  // 原版 jar 再进 classpath 就会和它同时导出 com.mojang.blaze3d.platform，
+  // modlauncher 直接报 "Modules minecraft and _1._21._1 export package ..."。
+  // Forge / 老版 NeoForge 则相反：原版 jar 就是游戏本体，必须留着。
+  const chain = merged.__chain || [];
+  const loaderKind = String((meta && meta.loader) || '').toLowerCase();
+  const isNeoForge = loaderKind === 'neoforge' || chain.some((x) => /^neoforge-/i.test(x));
+  const mcStr = (meta && meta.mcVersion) || chain[0] || '';
+  const vm = /^1\.(\d+)(?:\.(\d+))?/.exec(mcStr);
+  const mcScore = vm ? Number(vm[1]) * 100 + Number(vm[2] || 0) : 0;
+  const splitClient = isNeoForge && mcScore >= 2005;
+  if (!splitClient) cpList.push(clientJar);
 
   const assetIndexName = merged.assets || (merged.assetIndex && merged.assetIndex.id) || 'legacy';
   const uuidNoDash = String(account.uuid || '').replace(/-/g, '');
