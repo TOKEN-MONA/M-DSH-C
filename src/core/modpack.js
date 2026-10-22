@@ -118,7 +118,12 @@ async function installFromBuffer(buf, meta, task) {
   let bytes = 0;
   const errors = await pool(files, 8, async (f) => {
     const url = (f.downloads && f.downloads[0]) || null;
-    if (!url) return;
+    if (!url) {
+      // 作者没给直链（常见于 CurseForge 禁止第三方分发），跳过但计入进度
+      done++;
+      tasks.patch(task, { done });
+      return;
+    }
     const dest = path.join(gameDir, f.path);
     await download(url, dest, { sha1: f.hashes && f.hashes.sha1, size: f.fileSize, timeout: 300000 });
     done++;

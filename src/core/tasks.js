@@ -34,7 +34,9 @@ function emit(task) {
 
 export function patch(task, fields) {
   Object.assign(task, fields);
-  if (task.total > 0) task.percent = Math.min(100, Math.round((task.done / task.total) * 1000) / 10);
+  if (fields.percent === undefined && task.total > 0) {
+    task.percent = Math.min(100, Math.round((task.done / task.total) * 1000) / 10);
+  }
   emit(task);
   return task;
 }
@@ -55,6 +57,7 @@ export function finish(task, error) {
     status: error ? 'error' : 'done',
     error: error ? String(error.message || error) : null,
     stage: error ? '失败' : '完成',
+    done: error ? task.done : Math.max(task.done, task.total || 0),
     percent: error ? task.percent : 100,
     finishedAt: Date.now(),
   });
